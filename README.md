@@ -1,6 +1,6 @@
 # Cognitive recovery after stroke: A meta-analysis and meta-regression of intervention and cohort studies
 
-**Saa JP, Tse T, Baum C, Cumming T., Josman N., Rose M., O'Keefe S., Sewell K., Nguyen V., and Carey L**. "Trajectory and factors impacting cognitive recovery in the first year after stroke", Published in [*Neurorehabilitation and Neural Repair*](https://journals.sagepub.com/doi/full/10.1177/15459683211017501).
+**Saa JP, Tse T, Baum C, Cumming T., Josman N., Rose M., O'Keefe S., Sewell K., Nguyen V., and Carey L**. "Cognitive recovery after stroke: A meta-analysis and meta-regression of intervention and cohort studies", Published in [*Neurorehabilitation and Neural Repair*](https://journals.sagepub.com/doi/full/10.1177/15459683211017501).
 
 ## Please read carefully before pushing the "knit" button:
 
