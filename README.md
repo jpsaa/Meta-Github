@@ -1,8 +1,8 @@
 # Cognitive recovery after stroke: A meta-analysis and meta-regression of intervention and cohort studies
 
-**Saa JP, Tse T, Baum C, Uribe D, Windecker S, Ma H, Davis S, Donnan G, Carey T**. "Trajectory and factors impacting cognitive recovery in the first year after stroke", Published in [*Neurorehabilitation and Neural Repair*](https://journals.sagepub.com/doi/full/10.1177/15459683211017501).
+**Saa JP, Tse T, Baum C, Cumming T., Josman N., Rose M., O'Keefe S., Sewell K., Nguyen V., and Carey L**. "Trajectory and factors impacting cognitive recovery in the first year after stroke", Published in [*Neurorehabilitation and Neural Repair*](https://journals.sagepub.com/doi/full/10.1177/15459683211017501).
 
-# Please read carefully before pushing the "knit" button:
+## Please read carefully before pushing the "knit" button:
 
 ## Make sure the files you downloaded from [GitHub](https://github.com/jpsaa/meta-analysis-cognition) are all in the same folder as your working environment (otherwise the code will not run). These files are:
       a) word-template-1.docx
@@ -12,8 +12,8 @@
       e) model_data.csv
       f) meta-NNR.Rmd
 
-#### Open the "meta-NNR.Rmd" file using R-studio
-#### Make sure to change your working directory:
+### Open the "meta-NNR.Rmd" file using R-studio
+### Make sure to change your working directory:
       i. Press "cntrl + F" on your keyboard
       ii. Replace the all code lines that say "/Users/local folder in computer" with a destination on 
       your computer that makes more sense (e.g. "/Users/Guest/Desktop" OR "/Users/Guest/Downloads" 
