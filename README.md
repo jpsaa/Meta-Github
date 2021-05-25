@@ -4,7 +4,7 @@
 
 ## Please read carefully before pushing the "knit" button:
 
-## Make sure the files you downloaded from [GitHub](https://github.com/jpsaa/meta-analysis-cognition) are all in the same folder as your working environment (otherwise the code will not run). These files are:
+### Make sure the files you downloaded from [GitHub](https://github.com/jpsaa/meta-analysis-cognition) are all in the same folder as your working environment (otherwise the code will not run). These files are:
       a) word-template-1.docx
       b) jama.csl
       c) bibliography.bib
