@@ -1,0 +1,2889 @@
+---
+title: "Cognitive recovery after stroke: A meta-analysis and meta-regression of intervention and cohort studies"
+subtitle: Supplemental Material
+author:
+- Authors
+-    
+- Juan Pablo Saa, PhD, OTD, MPH
+- Tamara Tse, PhD
+- Toby Cumming, PhD
+- Naomi Josman, PhD
+- Miranda Rose, PhD
+- Sophie O'Keefe, BOT(Honours)
+- Katherine Sewell, MPH
+- Vinh Nguyen, PhD
+- Leeanne Carey, PhD 
+
+date: "July 12th, 2020 (Revised Feb 15th, 2021)"
+bibliography: bibliography.bib
+csl: /Users/local folder in computer/jama.csl
+nocite: '@*'
+urlcolor: blue
+mainfont: Times New Roman
+sansfont: Times New Roman
+fontsize: 10pt
+output: 
+  word_document:
+    highlight: tango
+    reference_docx: /Users/local folder in computer/word-template-1.docx
+    toc: yes
+always_allow_html: yes
+---
+
+
+```{r global_options, include=F}
+
+#### READ CAREFULLY BEFORE PUSHING THE "KNIT"" BUTTON ####
+
+#### Make sure the files you downloaded from GitHub (https://github.com/jpsaa/meta-analysis-cognition) are in the same folder (otherwise the code will not run):
+####        a) word-template-1.docx
+####        b) jama.csl
+####        c) bibliography.bib
+####        d) ma_data.csv
+####        e) model_data.csv
+
+#### MAKE SURE TO CHANGE THE DESTINATION FOLDER BY DOING THE FOLLOWING:
+####     i. Press "cntrl + F" on your keyboard
+####    ii. Replace the all code lines that say "/Users/local folder in computer" with a 
+####        destination on your computer that makes more sense (e.g. "/Users/Guest/Desktop" OR "/Users/Guest/Downloads" for a Mac computer;
+####        and "C:/a/path/that/makes/sense" for Windows)
+
+
+
+### PLEASE NOTE: the document published in NNR was further edited. Therefore, the document produced after "knitting" this file will not look exactly the same as the one published in the journal website. More specifically:
+#### 1. All large code chunks were moved and hyperlinked to the bottom for better readibility
+#### 2. Figure and table names were edited in the last steps of the article proofing process (to match the formatting of the journal)
+#### 3. Figure quality in the knitted document has been reduced for faster knitting
+#### 4. This document also contains additional analyses that were requested during the peer-reviewing process
+
+
+
+rm(list=ls()) ##cleaning the environment
+knitr::opts_chunk$set(warning=FALSE, message=FALSE, eval=T, echo = T,fig.align = "center")
+
+```
+
+\pagebreak
+
+#  Disclaimer
+>This data supplement outlines the data analysis steps undertaken in the meta-analysis titled *Cognitive recovery after stroke: a meta-analysis and meta-regression of intervention and cohort studies*. Please note that the authors (and not the journal) take full responsibility for the decisions and ideas presented throughout this document. For queries about the methods, code, or the interpretations presented in this document,  please do not hesitate to contact the corresponding author (Dr. Juan Pablo Saa, <saajp@outlook.com>)
+
+#  Requirements
+##  Software and Packages
+
+The `metafor` package is a free, open-source add-on for conducting meta-analyses in **R** and **Rstudio**. This package contains tools that assist authors in the calculation of effect sizes, fitting of meta-regression models, visualization of effects sizes with forest plots, and diagnostic tests. Detailed information about the development of this package can be found in the [Journal of Statistical Software](https://www.jstatsoft.org/article/view/v036i03) [@viechtbauer_conducting_2010], as well as on its [dedicated website](http://www.metafor-project.org/doku.php)
+
+The `forestplot` package was used to visually represent the models fitted in the [analysis of moderators section](#model-estimates-in-tables). This package allows users to graphically represent the models fitted in the form of [summary forest plots](#average-effect-trials-plus-cohorts), using advanced grid-based figures. The advantage of using this package over `metafor`'s `forest()` function is the versatility of its options, which includes colors, shapes, and positioning of vectors. `forestplot` was used after fitting the final models and extracting the effect estimates previously calculated with `metafor` (or any other package that can fit meta-regression models) 
+
+`flextable` and `huxtable` were used to create customized, html tables compatible with Microsoft Word; `dplyr` was used to do data manipulation and transformation (mostly for filtering and selecting variables).
+
+`ggplot` was used to create Figure 1 of the manuscript, along with `viridis to assign automated color palettes
+
+`multcomp` was used to run post-hoc comparisons (Tukey contrasts)[@tukey_comparing_1949] of specific levels within models.
+
+
+```{r project setup, echo=F, eval=T}
+setwd('/Users/local folder in computer')
+ma=read.csv("/Users/local folder in computer//ma_data.csv")
+names(ma)[grep("patient",names(ma))]="etiology"
+fp1.all=read.csv("/Users/local folder in computer/model_data.csv")
+levels(ma$interv.type)[grep("non-|clinical",levels(ma$interv.type))]=c("therapist-led interv","non-routine interv")
+ma[ma$country=="South Korea","country"]="Korea"
+
+id=unique(ma$id)
+info="design" 
+
+###replace however many times 'info' vector from above
+
+for (a in seq_along(info)) {
+  for (i in seq_along(id)) {
+    ma[which(ma$id==id[i]),info[a]]=ma[which(ma$id==id[i]),info[a]][1]
+  }
+}
+
+```
+
+
+```{r libraries, eval=T,echo=T}
+
+library(metafor)
+library(forestplot)
+library(flextable)
+library(huxtable)
+library(dplyr)
+library(multcomp)
+library(ggplot2)
+library(viridis)
+library(extrafont)
+library(Cairo)
+library(countrycode)
+
+# solving function conflicts
+select <- dplyr::select
+
+```
+
+
+##  Data Requirements and Setup
+
+Data have been provided as separate files in our online [GitHub portal](https://github.com/jpsaa/meta-analysis-cognition). Two files are available for download. The first, named "`dat.csv`", contains all the raw data extracted from each study. Procedures for data extraction are detailed in our manuscript, as well as in our [PROSPERO online protocol](http://www.crd.york.ac.uk/PROSPERO/display_record.php?ID=CRD42017054449). Note that variables reported as count or frequencies were standardized into percentages.
+
+The second file is a matrix-type table "`fp1.all.corr.csv`" containing the model results, which were run separately with the data contained in the `dat.csv` document. Procedures for model fitting are explained in the [models section](#modeling-the-data) of this document. 
+
+###  Reading the Data
+For practical purposes, store the downloaded files in the same folder in your local computer. Set the **R** working environment into this folder and load the dataframes using basic **R** syntax (i.e.`read.csv()`). For easier data manipulation with **R-studio**, we have assigned the `ma` nickname to the raw data; and `fp1.all` to the model results table. The latter will be used [in a subsequent analysis phase](#summary-forest-plots) to build the main Forest Plots (Figure 2 of the manuscript).
+
+
+
+```{r setup fake, eval=F, echo=T}
+
+setwd('/Users/local folder in computer')
+ma <- read.csv("ma_data.csv")
+fp1.all <- read.csv("model_data.csv")
+
+
+```
+
+###  Organizing Levels Within Categorical Variables
+
+When loading a dataframe, **R** pre-assigns levels to all categorical variables. These levels are not always intuitive or helpful in the data analysis. Levels within categorical variables have to be re-organized, as indicated below:
+
+
+```{r organizing levels, echo=T, eval=T}
+
+ma$etiology=factor(ma$etiology,
+                       levels=c('healthy','tia',as.character(unique(ma$etiology))
+                                [-grep('healthy|tia',unique(ma$etiology))]))
+
+ma$age.group=factor(ma$age.group,
+                     levels = c('44-65','>65-70', '>70-81'))
+
+
+ma$quality=factor(ma$quality,
+                   levels = c('good','fair', 'poor'))
+
+ma$stage=factor(ma$stage,
+                   levels = c('1-60 days','61-180 days', '181-729 days','>729 days'))
+
+
+```
+
+```{r Prof SP comment, include=F}
+
+# Page 94. Regarding the statement “Notably, older stroke survivors showed a significant improvement only when being part of a 
+# controlled intervention (g=0.41, CI=0.05–0.77 vs g=0.08, CI=-0.06–0.21 in observational cohorts)” – this is perhaps surprising 
+# since older people are known to recover physically after stroke so one would expect some cognitive recovery. Was this because 
+# the studies on older people were confounded by being performed in the acute or long-term stage when recovery is less pronounced overall?
+
+ma[order(ma$stage,ma$id),] %>%  filter(age >= 70, intervention=="yes") %>% 
+  select(id,domain,stage,Ni,vi) %>% 
+  unique %>% 
+  group_by(stage) %>%
+  summarise(`No. of studies`= length(unique(id)),
+            # `total sample ≥ 70 years`=sum(Ni),
+            `average effect`=mean(vi),
+            `number of domains tested`=length(unique(domain)))  
+  # write.csv("studies.over.70.years.csv")
+
+
+
+
+```
+
+>**Please note** that `healthy` (healthy participants) and `tia` (transient ischemic attack) were used only when modeling the "`etiology`" variable. For all the other models `healthy` and `tia` individuals need to be removed.
+
+
+#  Organizing Cognitive Domains
+As specified in our manuscript, two authors (JPS and TT) independently mapped all cognitive domains to a general or specific mental function category of the International Classification of Functioning and Disability (ICF). This process was completed using the inclusion/exclusion criteria of the ICF framework (chapter 1),[@world_health_organization_international_2001]  and the cognitive instruments and domains previously mapped by our team, as detailed in our published systematic report.[@saa_longitudinal_2019] Instruments not previously mapped were assigned an ICF mental function based on the mapping rules validated by Cieza et al. 2001, 2019.[@cieza_linking_2002;@cieza_refinements_2019] This process resulted in the mapping of `r length(unique(ma$instrument))` unique instruments and `r length(unique(ma$domain))` cognitive domains.
+
+Figure 1 of our manuscript displays all the mental functions and instruments used in our analyses. The code to recreate such figure is provided below:
+
+```{r, Organizing cognitive domains, eval= F, fig.width=16.5, fig.height=18}
+
+    # creating a dataframe "x" with all the instruments and the cognitive domains they evaluate
+  x=unique(ma[,c("id","intervention","instrument","domain")])
+  
+  # creating a second dataframe from "x" with the count of tests per domain in parenthesis
+  names<-data.frame(table(x$domain))[,1]  
+  b<-data.frame(table(x$domain))
+  output=data.frame()
+  # the loop below extracts the data per domain and appends the count in parenthesis
+  for (i in seq_along(names)) {
+    
+    #filter by domain and then table the instruments and type of study (intervention "yes" or "no")
+    t=x%>%filter(domain==names[i]) 
+    t<-as.data.frame(table(t$instrument, t$intervention))
+    t<-t[order(t$Freq,decreasing = T),]
+    t<-t[t$Freq!=0,]
+    t$Var1<-as.character(t$Var1)
+    t$domain<-rep(paste0(b[i,1],' (',length(unique(t$Var1)),')'),length(t$Freq))
+    
+    #adding two rows of empty data to create gaps between domains in the final graph
+    a<-data.frame(Var1=c('',NA),
+                  Var2=rep(NA,2),
+                  Freq=rep(NA,2),
+                  domain=rep(paste0(b[i,1],' (',length(unique(t$Var1)),')'),2))
+    
+    output=rbind(output,t,a)
+    
+  }
+  
+  x=output
+  
+  # naming and reorganizing columns within "x"
+  names(x)=c('instrument','intervention','count', 'domain')
+  x<-x[,c('instrument', 'domain','intervention', 'count')]
+  
+  # creating an ID number based on the instruments and domains
+  x<-x[order(x$domain),]
+  
+  x$id<-factor(paste(x$instrument,x$domain))
+  
+  x$id<-factor(x$id,
+               labels=c(1:length(levels(x$id))))
+  id<-as.character(unique(x$id))
+  
+  x$id<-factor(x$id,
+               levels=id,
+               labels=c(1:length(levels(x$id))))
+  
+  # renaming empty spaces "" with NA
+  x[which(x$instrument==''),'instrument']=NA
+  # renaming domains and instruments for better understanding
+  x$domain=gsub("hlcf","executive function*",x$domain)
+  x$instrument=gsub('aq','aq-blad',x$instrument)
+
+  # preparing the data
+  x$id=as.integer(as.character(x$id))
+  
+  # making executive functions the last group in the graph (clockwise orientation)
+  str.last=max(x[grep('executive',x$domain),'id'])
+  last=max(x$id)
+  delta=last-str.last
+  
+  x$id=x$id + delta
+  x$id=ifelse(x$id>last, x$id - last,x$id )
+  x=x[order(x$id),]
+  
+  # naming NAs (if any) into "other" and creating variable types
+  x$instrument=as.character(x$instrument)
+  x[!is.na(x$instrument) & x$instrument=='other','instrument']='Other'
+  x[!is.na(x$instrument) & x$instrument=='[Not Reported]','instrument']='Not reported'
+  x$instrument<-factor(x$instrument)
+  x$domain<-factor(x$domain)
+  x$intervention<-as.character(x$intervention)
+  x$id<-as.integer(x$id)
+  
+  data=x
+  names(data)[which(names(data)=='intervention')]='Intervention'
+  
+  # Get the name and the y position of each label
+  label_data= data %>% group_by(id, instrument) %>% summarize(tot=sum(count))
+  number_of_bar=nrow(label_data)
+  # subtracting 0.5 because the letters must have the angle of the center of the bars. Not extreme right(1) or extreme left (0)
+  angle= 90 - 360 * (label_data$id-0.5) /number_of_bar
+  label_data$hjust<-ifelse( angle < -90, 1, 0)
+  label_data$angle<-ifelse(angle < -90, angle+180, angle)
+  
+  # prepare a data frame for base lines
+  empty_bar=2
+  base_data=data %>%
+    group_by(domain) %>%
+    summarize(start=min(id), end=max(id) - empty_bar) %>%
+    rowwise() %>%
+    mutate(title=mean(c(start, end)))
+  base_data=base_data[order(base_data$start),]
+  
+  # prepare a data frame for grid (scales)
+  
+  grid_data = base_data
+  grid_data$end = grid_data$end[ c( nrow(grid_data), 1:nrow(grid_data)-1)] + 1
+  grid_data$start = grid_data$start - 1
+  grid_data=grid_data[-1,]
+  
+  # assigning colors and positions for domains with a long list of instruments
+    cols=c(
+      "grey",
+      "black",
+      # "lightskyblue",
+      # "brown1",
+      "palegreen3",
+      "seagreen")
+  
+  half.1=trunc(length(base_data$domain)/2)-1
+  half.2=round(length(base_data$domain)/1.99)-2
+  
+  ggplot(data) +
+    
+    # Add the stacked bar
+    geom_bar(aes(x=as.factor(id), y=count, fill=Intervention), stat="identity" 
+             # alpha=0.5
+             ) +
+    scale_fill_viridis(discrete=TRUE) +
+    scale_fill_manual(values = cols) +
+    # Add a value lines. I do it at the beginning to make sure barplots are OVER it.
+    geom_segment(data=grid_data, aes(x = end, y = 0, xend = start, yend = 0), 
+                 colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+    
+    geom_segment(data=grid_data, aes(x = end, y = 20, xend = start, yend = 20), 
+                 colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+    
+    geom_segment(data=grid_data, aes(x = end, y = 40, xend = start, yend = 40), 
+                 colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+    
+    geom_segment(data=grid_data, aes(x = end, y = 60, xend = start, yend = 60), 
+                 colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+    
+    geom_segment(data=grid_data, aes(x = end, y = 80, xend = start, yend = 80), 
+                 colour = "grey", alpha=1, size=0.3 , inherit.aes = FALSE ) +
+    
+    # Add text showing the value of each 100/75/50/25 lines
+    annotate("text", x = rep(max(data$id),5), y = c(0,20,40,60,80), 
+             label = c("0", "20","40", "60",'80') , color="grey", size=3 , angle=0, fontface="bold", hjust=1) +
+    
+    ylim(-400,150) +
+    theme_minimal() +
+    # THE LINES BELOW CAN BE UNCOMMENTED TO ADD A TITLE IN THE ACTUAL FIGURE
+    # ggtitle(
+    # "Figure 3. Cognitive instruments and subtests used to evaluate domain-specific and global cognition"
+    # )+
+    
+    # labs(subtitle = paste0('Tools (',length(unique(data$domain)),')', ' used more than 3 times across all articles. These tools were used in ',length(unique(.icf.plot$id)),' of ',nrow(df),' papers, and ',
+    #      round((length(.icf.plot$instrument)/length(sort(tests.cleaner$instrument))),digits = 2)*100 ,'% of all the evaluations performed' ))+
+    
+    theme(
+      legend.position = c(0.5, 0.05),
+      axis.text = element_blank(),
+      axis.title = element_blank(),
+      panel.grid = element_blank(),
+      plot.title = element_text(family = "Tahoma", face = "bold",hjust = 0.5, size = 20),
+      plot.subtitle = element_text(family = "Tahoma", face = "bold.italic",hjust = 0.5, size = 15)
+      # plot.margin = unit(rep(-1,4), "cm")
+    )+
+    coord_polar() +
+    
+    # Add labels on top of each bar
+    geom_text(data=label_data, aes(x=id, y=tot+3, label=instrument, hjust=hjust), 
+              color="black", 
+              # fontface="bold",
+              alpha=1, size=4, 
+              angle= label_data$angle, inherit.aes = FALSE ) +
+    
+    # Add base line information
+    geom_segment(data=base_data, aes(x = start, y = -5, xend = end, yend = -5), 
+                 colour = "black", 
+                 # alpha=0.8, 
+                 size=.5 , inherit.aes = FALSE )  +
+    
+    geom_text(data=base_data, aes(x = title, y = -35, label=domain), 
+              hjust=c(rep(.8,5),.5,rep(.1,5)), 
+              colour = "black", 
+              # alpha=0.8, 
+              size=4.3, fontface="bold", inherit.aes = FALSE) 
+    # scale_fill_grey()
+    
+  
+  
+# the commented lines below add notes to the bottom of the figure  
+#   p=grid.arrange(bottom =
+#                    "*Also refered to as higher-level executive function (HLCF) in the ICF Framework\nThere were 126 cognitive evaluation tools used longitudinally in the 122 studies we included in this meta-analysis:
+# Abbreviations:10-wll, 10-word learning list; 5 objects mem test, 5 objects memory test; ace-r, Addenbroke's Cognitive Examination-Revised; adas, Alzheimer's Disease Assessment Scale; amt,\n Abbreviated Mental Test; anelt, Amsterdam-Nijmegen Everyday Language Test; anim nam, Animal Naming; aq-blad, Aphasia Quotient (from BLAD); avlt, Auditory Verbal Learning Test; balloons, \nBalloons Test; bdae, Boston Diagnostic Aphasia Examination; bdt, Block Design Test (from WAIS); bit, Behavioral Inattention Test; blad, Lisbon Battery for Assessment of Dementia; bnis, Barrow \nNeurological Institute Screen for Higher Cerebral Functions; bnt, Boston Naming Test; bpp, Brown-Peterson Paradigm; btt, Baking Tray Test; bvrt, Benton Visual Retention Test; calculation, Calculation\n Test (Deniz et al., 2016); camcog, Cambridge Cognition Examination; camel and cactus, Camel and Cactus Test for Dementia; casi, Cognitive Assessment State Instrument; cat, Comprehensive \nAphasia Test; ccs, composite cognitive score (Fonseca et al., 2018); cerad, Consortium to Establish a Registry for Alzheimer's Disease Test; cns-vst, Computerised Neuropsychological Vital-Signs Test;\n cnst, Conversational Narrative Speech Test; cogmed qm, Cogmed Cognitive Training Software; cognistat, Neurobehavioral Cognitive Status Examination; cogstate, CogState computerized Assessment\n Battery; comprehension, comprehension test from BLAD; copying designs, from Neuropsychological Assessment (Lezak et al., 2004); count, Forward and Backward Counting Test; cowat, Controlled Oral\n Word Association Test; cpt, Continuous Performance Test (Auditory and Visual); cst, Concept Shifting Test; cvlt, California Verbal Learning Test; dft, Digit Forward Test; digit sp, Digit Span;\n drs, Dementia Rating Scale; dss, Double Simultaneous Stimulation (Rengachari et al, 2011); efpt, Executive Function Performance Test; efrt, Executive Function Route Finding Test; fab, Frontal\n Assessment Battery; fas-ovf, FAS Oral-Verbal Fluency test; fim, Functional Independence Test (cognitive items); fluency, fluency test from BLAD; geom fig, drawing geometric figure from Revised\n BVRT; git, Groninger Intelligence Scale; gos, Glasgow Outcome Scale; hvlt-r, Hopkins Verbal Learning Test, Revised; iq-code, Informant Questionnaire on Cognitive Decline in the Elderly; ist,\n Isaac's Test; knafelc, iq-code and cognitive testing for dementia; ksnap, Kaufman Short Neuropsychological Assessment Procedure; lcf, Levels of Cognitive Functioning; letter sorting (Leopold\n and Borson, 1997); line bisect, Line Bisection Test (from BIT); list learning, 10-Word List Learning Task; logical memory, Logical Memory Test (from WMS); lotca, Lowenstein Occupational Therapy\n Cognitive Assessment; mdrs, Mattis-Dementia Rating Scale; memory interface, Neuropsychological Assessment (Lezak, 2004); mis, Memory Impairment Screen; mmse, Mini Mental State Examination; \nmoca, Montreal Cognitive Assessment; msot, Mental Slowness Observation test; mvci, Mild Vascular Cognitive Impairment Test; naming, Naming Test (from CERAD); neuro-qol, applied cognition executive\n function from Neuro-QoL instrument; neurotrax, NeuroTrax Computerized test; nfi, Neurobehavioral Functioning Inventory; npi-q, Neuropsychiatric Inventory Questionnaire; pdt, Picture Description\n Test; phon fluen, Phonemic Fluency Task; ravlt, Rey Auditory Verbal Learning Test; reading, Reading Task (from CERAD); repeating, repeating task (from BDAE); ric-fas, Rehabilitation Institute of\n Chicago Functional Assessment Scale; rivermead, Rivermead Behavioral Memory Test; rocf, Rey-Auditory Verbal Learning Test; rpmt, Raven's Progressive Matrices Test; sdsa, Stroke Driver\n Screening Assessment; sem fluen, 1-Min Semantic Fluency Test with Animals; similarities test (from WAIS); spatial cueing, Posner's Spatial Cueing Paradigm; spsmq, Short-Portable Mental Status\n Questionnaire",
+  # p)
+
+  # ggsave("/Users/local folder in computer/Fig-2-BW.pdf", width=16.5, height=18, device = cairo_pdf)
+
+```
+#  Modeling the Data
+Models in our study were fitted with the restricted maximum likelihood (REML) estimation.[@burnham_model_2002] This method uses a transformed set of data to calculate summary estimates, which are obtained after accounting for the influence of parameters that are not necessarily of our interest (e.g. covariance within effects reported in the same study), but still affect the model estimates. The REML method automatically creates a set of models, which are then compared against each other, with the final, selected model, being the one that best explains the observed data (in our case, the overall standardized mean difference (SMD) and its variance). A graph with the model comparisons obtained with the REML method can be requested in `metafor` with `profile()`. Please refer to the [profiling the models section](#profiling-the-models) for more details about this function and how it was interpreted and used in our analysis.
+
+>**Note that** all model results presented in this document can be fitted directly from the `ma` dataframe. The final estimates, confidence intervals, error, and p-values should be the same as the ones provided in the `fp1.all` matrix. Models were fitted separately with one variable at a time, except for the multivariable models presented in the [meta-analysis with multiple moderators section](#meta-analysis-with-multiple-moderators).
+
+##  Variables Analyzed
+
+The `fp1.all` matrix contains the results of our model calculations for all the categorical variables studied. These variables were defined as follows:
+
+1. `intervention`: specifies whether or not patients were part of a controlled intervention, with two possible levels:
+    i) `yes`: all studies with or without randomization. Study designs meeting these criteria were Randomized Controlled Trials, Pre-post interventions, and controlled interventions with a control group, but without randomization (quasi-experimental).
+    ii) `no`: all studies without a controlled intervention, examining an exposure or outcome over time. Designs meeting these criteria were prospective and retrospective longitudinal cohort studies, case-control, and case-series studies.
+    
+2. `intervention type`: this variable was declared only in studies with controlled interventions, and describes a wider intervention category as detailed below.
+    i) `therapist-led intervention`: all study subgroups undergoing any type of therapist-led intervention (in addition to usual care), including:
+          a) additional physical or occupational therapy
+          b) integrated rehabilitation (multidisciplinary intervention)
+          c) cognitive training, Cognitive Orientation to daily Occupational Performance (CO-OP),[@polatajko_cognitive_2001] time-pressure management, or task-oriented interventions
+    ii) `non-routine and alternative interventions`: study subgroups undergoing interventions not usually implemented in a hospital setting, such as:
+          a) driving, driving simulation, driving tasks
+          b) home-based rehabilitation or home treatment
+          c) video game interventions and computed-based training
+          e) robot therapy
+          f) color therapy, or color-rhythm therapy
+          g) fitness training, intensive physical or cardiac rehabilitation, and ergometer-based interventions.  
+          This group also included other uncommon forms of therapy including::
+          h) acupuncture 
+          i) alternative medicine therapies (alone or combined with other therapies such as herbal medicine or pharmacological interventions)
+          j) stenting
+          k) transcranial magnetic stimulation
+          l) secondary prevention of stroke (education + diet + pharmacological treatment)
+    ii) `pharmacological intervention`: study subgroups undergoing treatment exclusively with pharmaceuticals, for instance:
+          a) blood pressure lowering (e.g. nimodipine, perindopril)
+          b) lipid lowering (e.g. simvastatin)
+          c) cognitive stimulants (e.g. donepezil, methyphenidate, levadopa, or paroxetine)
+          d) thrombolytic therapy (e.g. cerebral care granule)
+          e) aspirin
+    iv) `usual care`: study subgroups receiving usual care, or usual care + placebo. Usual care varied between studies as defined by the standards of care of each study’s health-care context.
+    
+3. `quality`: agreed methodological quality (`good`, `fair`, and `poor`) from each study, as evaluated by the [Study Assessment Tools](https://www.nhlbi.nih.gov/health-topics/study-quality-assessment-tools) from the National Heart, Blood, and Lung Institute (NHBLI), from the National Institutes of Health (NIH)
+
+
+4. `stage`: rehabilitation stages, created from the categorization of the `day2i` column, which contains information about the timing of the longitudinal assessments carried out (in days after stroke onset):
+    i) Acute recovery: `1-60 days`
+    ii) Subacute: `61-180 days`
+    iii) Chronic: `181-729 days`
+    iv) Long-term: `>729 days`
+    
+5. `domain`: cognitive domain evaluated in the reports, organized according to the [International Classification of Disability and Functioning (ICF)](https://apps.who.int/iris/bitstream/handle/10665/42407/9241545429.pdf)[@world_health_organization_international_2001] and the guidelines developed by Cieza et al., 2002.[@cieza_linking_2002]  
+
+6. `etiology`: subgroup of patients within each study, sub-divided into stroke types according to its etiology (first-ever ischemic, first-ever ischemic or hemorrhagic, ischemic, hemorrhagic, or both). Studies with healthy participants or transient ischemic attack were only used as reference.
+
+7. `age.groups`: mean age of the study subgroups, categorized in three levels: `44-65`, `>65-70`, and `>70-81` years.
+
+
+
+##  Calculation of Effect Sizes
+
+The studies included in this review used different assessments to evaluate cognition, each with a different scoring range. In order to compare the changes in score (effect) from baseline to follow-up across studies, we computed the Hedges' **g** standardized mean difference (SMD), which corrects for the influence of studies with small sample size (< 10 individuals).[@hedges_distribution_1981]
+
+Effect estimates can be calculated in `metafor` with `escalc()`. Required arguments in this function are `vtype`, which is used to specify the type of sampling variance ("UB" or unbiased); and `measure`, is the type of estimate to calculate ("SMD" in our case). The rest of the arguments in this function indicate the names of the variables in the dataset containing the sample size (`n1i` and `n2i`), mean scores (`m1i` and `m2i`), and standard deviations (`sd1i` and `sd2i`) at baseline and follow-up. It is crucial that these variables are *carefully defined in order to compute valid SMDs*:   
+
+```{r calc effect, eval=T, echo=T}
+ma <- escalc(measure = "SMD", vtype = "UB",
+             m1i = m1i, 
+             n1i = n1i, 
+             sd1i = sd1i,
+             m2i = m2i, 
+             n2i = n2i, 
+             sd2i = sd2i,
+             data = ma)
+ma$yi=ma$yi*-1 ### inverting the effect sizes for better interpretation
+
+```
+
+
+##  Accounting for Multiple Comparisons Within Studies 
+
+Eligible studies often contributed multiple effect sizes at multiple time-points. Because the SMDs from these studies were calculated from the same pool of participants, these cannot be treated as independent from one another in the final models.
+
+The overlapping data structure can be declared in the models as random effects. Random effects allow to adjust estimates by incorporating the correlations *within* and *between* study subgroups in the final models.
+
+Random effects models in `metafor` can be requested with `rma.mv()`. These models assume a nested `~ inner | outer` variance structure in which the *outer* factor is the grouping variable containing the *inner* factor. Using this hierarchical syntax, the individual studies, defined in our data with a unique study `id` were defined in our models as the *outer* factor (or grouping variable). The study subgroups, or `group.id` variable, was the *inner* factor contained within each study `id`.
+
+The **R** syntax for this nested random effects structure is then declared in our analysis as:
+
+
+
+$$random =\ \sim group.id\ |\ id$$
+
+
+
+***
+
+>**Please note** that the formula above only specifies that the subgroups within each study `id` are correlated. However, subgroups can also be correlated with themselves, as it occurred quite frequently with subgroups from studies with more than one follow-up. Applying the same logic as above, we can specify that a correlation also may exist between study subgroups, in one or more stages, with the following syntax:
+
+
+$$random =\ \sim~ stage\ |\ group.id$$
+
+
+
+***
+
+An important caveat worth here is that `rma.mv()` only takes one `random` argument at a time. To evaluate two random factors simultaneously, these have to be put in a list, as shown below:
+
+
+$$random = list (\sim\ group.id\ |\ id,\ \sim stage\ |\ group.id)$$
+
+
+
+***
+
+The final code syntax with all random factors included would be:
+
+```{r syntax example, eval=T, echo=T}
+ma.all=ma %>% filter (etiology!="healthy",etiology!="tia") #### excluding healthy and TIA subgroups
+res <- rma.mv(yi, vi,
+       random = list(~ group.id | id, ~ stage | group.id),
+       data = ma.all)
+```
+
+
+>**Note that** overlapping data in longitudinal studies can also be studied assuming an autoregressive structure, which assumes a correlation that "weakens" over-time. For more details about this method please refer to the meta-analyses of longitudinal studies by Ishak et al. (2007) and Trikalinos et al. (2012).[@ishak_meta-analysis_2007; @trikalinos_meta-analysis_2012]
+
+***
+
+>For further details about overlapping data structures, please refer to the [**R documentation for the rma.mv() function**](https://www.rdocumentation.org/packages/metafor/versions/1.9-9/topics/rma.mv) in the `metafor` package.
+
+***
+
+##  Description of the Studies
+
+Our manuscript contains a summary of the included studies in Table 1 (see code to generate Table 1). 
+
+```{r table 1, echo=T, eval=T}
+
+
+#### counting the number of subgroup follow-ups
+ma=ma[order(ma$id),]
+ids=unique(ma$id)
+ma$group.count=as.character(ma$group.id.orig)
+ma[grep("all-",ma$group.id.orig),'group.count']=NA
+group.counts=table(unique(ma[!is.na(ma$group.count),c("id","group.count")])[,1])
+
+for (i in seq_along(group.counts)) {
+  ma[ma$id==ids[i],"group.count"]=group.counts[i]
+}
+
+###publication period
+ma$period=ifelse(ma$year <= 2000,'1998-2000',
+             ifelse(ma$year > 2000 & ma$year <=2010, "2001-2010", "2011-2019"))
+
+###Continent
+ma$continent<-as.character(factor(countrycode(sourcevar = ma[, "country"],
+                                 origin = "country.name",
+                                 destination = "continent")))
+
+
+## Working out warnings and multinational collaborations
+ma$country<- as.character(ma$country)
+ma[is.na(ma$country),'country']='mockup country'## this line is necessary because the replacement lines below do not accept missing values in the index column (country)
+
+ma[ma$country=='England','continent']='Europe'
+ma[ma$country=='Scotland','continent']='Europe'
+ma[ma$country=='Multinational','continent']='Multinational'
+ma[ma$country=='USA','continent']='North America'
+ma[ma$country=='Canada','continent']='North America' #9 conflicts
+ma[ma$country=='Turkey','continent']='Europe'
+ma[ma$country=='Chile'|ma$country=='Brazil','continent']='South America'
+
+## the line below should return no NAs
+# table(ma$continent,useNA = 'always')
+
+
+#### splitting the data
+ma.ob=ma %>% filter (intervention=="no")
+ma.int=ma %>% filter (intervention=="yes")
+
+
+# sum.tab=read.csv("summary.table.csv") --> names pre-created for table
+
+#### creating the table
+
+##### function to organize data in table form
+
+custom.table1 <- function(x){
+  .subgroups=cbind(table(unique(x[,c('id','group.count')])[,2]))
+  rbind(cbind("total sample",sum(unique(x[,c("id","Ni")])[,2])),
+            cbind("med sample",paste0(median(x$Ni)," (",paste0(range(x$Ni),collapse = "-"), ")")),
+            cbind("Follow up, days",paste0(median(x$diff.days)," (",paste0(range(x$diff.days),collapse = "-"), ")")),
+            cbind("subgroups",""),
+            cbind(rownames(.subgroups),
+                  cbind(paste0(.subgroups,
+                               "/",
+                               sum(.subgroups),
+                               " (",
+                               round(.subgroups/
+                                       sum(.subgroups)*100,1),
+                               ")"
+                  ))),
+            cbind("periods",""),
+            cbind(rownames(cbind(table(unique(x[,c("id", 'period')])[,2]))),
+                  cbind(paste0(cbind(table(unique(x[,c("id", 'period')])[,2])),
+                               "/",
+                               sum(.subgroups),
+                               " (",
+                               round(cbind(table(unique(x[,c("id", 'period')])[,2]))/
+                                       sum(.subgroups)*100,1),
+                               ")"
+                  ))),
+            cbind("continents",""),
+            cbind(rownames(cbind(table(unique(x[,c('id','continent')])[,2]))),
+                  cbind(paste0(cbind(table(unique(x[,c('id','continent')])[,2])),
+                   "/",
+                   sum(.subgroups),
+                   " (",
+                   round(cbind(table(unique(x[,c('id','continent')])[,2]))/
+                     sum(.subgroups)*100,1),
+                   ")"
+                   ))),
+            cbind("stages",""),
+            cbind(cbind(rownames(cbind(table(x$stage)))),
+                  cbind(paste0(cbind(table(x$stage)),
+                               "/",
+                               sum(cbind(table(x$stage))),
+                               " (",
+                               round(cbind(table(x$stage))/
+                                       sum(cbind(table(x$stage)))*100,1),
+                               ")"
+                  ))),
+            cbind("domains",""),
+            cbind(rownames(cbind(table(x$domain))),
+                  cbind(paste0(cbind(table(x$domain)),
+                   "/",
+                   sum(cbind(table(x$domain))),
+                   " (",
+                   round(cbind(table(x$domain))/
+                           sum(cbind(table(x$domain)))*100,1),
+                   ")"
+                    ))))
+}
+
+
+#### creating table 1
+  all=custom.table1(ma)
+  obs=custom.table1(ma.ob)
+  int=custom.table1(ma.int)
+
+### matching row names  
+all=cbind(all, obs[match(all[,1], obs[,1]),2], int[match(all[,1], int[,1]),2])
+
+
+# write.csv(all,"/Users/local folder in computer/table1-paper.csv",row.names = T)
+
+
+```
+
+Details of the individual studies were not provided in the manuscript. In this section we provide further details about each study, their design, type of patients included, agreed methodological quality rating, and the range of cognitive domains evaluated. Please note that the *Design (subgroup)* column contains information about the study subgroups. Within this column, observational studies (studies #1 through #`r length(unique(ma[ma$intervention=="no","id"]))`) are presented as per each study's exposure of interest, whereas intervention studies (studies #`r length(unique(ma[ma$intervention=="no","id"]))+1` through #`r length(unique(ma[,"id"]))`) are presented according to intervention categories, as defined in the [variables analyzed section](#variables-analyzed).
+
+The code below generates a supplemental table with all the included studies and the characteristics mentioned above:
+
+\renewcommand{\arraystretch}{2}
+
+```{r studies, eval=T}
+
+t1=ma
+t1=data.frame(
+    t1$id,
+    t1$intervention,
+    paste0(trimws(gsub('et al.| and| Halper| Kulkantrakorn','',t1$author)),', ',t1$year,
+           ' (',t1$country,')'),
+    paste0(t1$design,' (',
+          (gsub('all-tci \\| all-no tci \\||preserved motor cs tract \\| ','',t1$exp.of.int)),')'),
+    t1$quality,
+    t1$sample.stroke.baseline,
+    gsub(' \\(NA\\)','',
+         (paste0(t1$age,' (',round(t1$age.sd,2), ')'))),
+    paste0(round(t1$male*100),'%'),
+    t1$etiology,
+    gsub('NA%','',paste0(t1$all.prev.stroke,'%')),
+    t1$day1i,
+    t1$day2i,
+    t1$instrument.detail,
+    gsub(" \\| ",", ",t1$all.domains))
+
+t1=t1[order(t1$t1.intervention,
+            t1$paste0.trimws.gsub..et.al...and..Halper..Kulkantrakorn),]
+
+t1=t1[,-which(names(t1)=='t1.intervention')]
+names(t1)=c('id','study','design','quality','sample','age.and.sd','males', 'etiology',
+            'previous.stroke','eval.1', 'eval.2', 'instrument','domain')
+  
+t1=t1[!duplicated(t1$id),c('id','study','design',"quality",'sample','age.and.sd',
+                             'males','etiology',"previous.stroke", 'domain')]
+  
+t1$id=1:nrow(t1)
+  
+ t1$design=as.character(t1$design)
+  t1[grep("all-normal",t1$design), "design"]="cohort (cog stable | cog converter | cog reverter [for normal and declined patients])"
+ 
+  colnames(t1)=c('ID','Study (country)','Design (subgroup)','Quality', 'N',
+           'Age (SD)','Males','Stroke type',"Prev. stroke", "Domain evaluated (ICF)")
+  #### Formatting the table
+  
+obs=length(unique(ma[ma$intervention=="no","id"]))+1
+  
+huxtable(t1,add_colnames = T) %>% 
+  set_font_size(7) %>% 
+  set_col_width(c(.3,1,
+                  1,.6,
+                  .4,1,
+                  .5,.8,
+                  .5,1.5)) %>% 
+  set_bold(1,1:10,T) %>% 
+  set_font_size(1, 1:10, 8) %>% 
+  set_caption("Supplemental Table I: Included studies") %>% 
+  set_bottom_border(c(1,nrow(t1)+1),1:10,1) %>% 
+  insert_row("Observational cohort studies",after = 1, fill = "",colspan = 9) %>% 
+  set_align(2,1:10,"left") %>% 
+  set_bold(1,1:10,T) %>% 
+  set_bottom_border(2,1:10,1) %>% 
+  set_font_size(row = 2,col = 1:10, 8) %>% 
+  insert_row("Intervention studies",after = obs+1, fill = "",colspan = 10) %>% 
+  set_align(obs+2,1:10,"left") %>% 
+  set_bold(obs+2,1:10,T) %>% 
+  set_bottom_border(c(obs+1,obs+2),1:10,1) %>% 
+  set_font_size(row = obs+2,col = 1:10, 8) %>% 
+  huxtable::add_footnote("Abbreviations: ac amusic, auditory cortex amusia; cnt, computerized neuropsychologic test; cs tract, corticospinal tract; dep, depression; hlcf, higher-level cognition; ich, intracerebral hemorrhage; imt, intima-media thickness; nci, no cognitive impairment; psci, post-stroke cognitive impairment; psd, post-stroke depression; lf, left hemisphere stroke; rf, right hemisphere stroke; RCT, randomized controlled trial; SD, standard deviation; tia, transient ischemic attack",border = 0) %>% 
+  set_font_size(row = length(unique(ma$id))+4,col = 1:10, 7) %>% 
+  set_italic(row = length(unique(ma$id))+4,col = 1:10,T) %>% 
+  as_flextable()
+  
+
+```
+
+\renewcommand{\arraystretch}{1}
+
+\pagebreak
+
+##  Mixed-Model Fitting Example (for all data)
+
+For illustration purposes, we will calculate mean associations with cognitive recovery in the different rehabilitation stages, across all `r length(unique(ma[,"id"]))` studies, in the `ma` dataset (excluding TIA and healthy participants):
+
+
+```{r model demo, echo=T}
+
+res.stage=rma.mv(yi, vi,
+       mods = ~ stage - 1,
+       random = list(~ group.id | id, ~ stage | group.id),
+       data = ma.all)
+
+
+```
+
+
+>**Please note** that `- 1` removes the intercept from the model, as we want `1-60 days` to be our reference (and not the intercept).
+
+>**Also note** that we will interpret these models in the [multivariate meta-analysis section](#meta-analysis-with-multiple-moderators).
+
+***
+
+The results for this model would be:
+
+
+                         Multivariate Meta-Analysis Model (k = 1278; method: REML)
+
+                                          Variance Components:
+                                  
+                                  outer factor: id       (nlvls = 122)
+                                  inner factor: group.id (nlvls = 224)
+                                  
+                                              estim    sqrt  fixed 
+                                  tau^2      0.0838  0.2894     no 
+                                  rho        0.3366             no 
+                                  
+                                  outer factor: group.id (nlvls = 224)
+                                  inner factor: stage    (nlvls = 4)
+                                  
+                                              estim    sqrt  fixed 
+                                  gamma^2    0.0888  0.2980     no 
+                                  phi        0.5746             no 
+                                  
+                                  Test for Residual Heterogeneity:
+                                  QE(df = 1274) = 5817.7603, p-val < .0001
+                                  
+                                  Test of Moderators (coefficients 1:4):
+                                  QM(df = 4) = 140.7655, p-val < .0001
+
+                                    
+                                   
+```{r table stage, eval=T}
+
+###function to clean the table output (row names and p values)
+table.pimp=function(x){
+a=as.character(round(x[["pval"]],2))
+rownames(x$beta)=gsub('stage|interv.type| interv.| interv|.recoded|interv.design','',rownames(x$beta))
+for(i in 1:length(a)){
+    if(a[i] == 0) {
+      a[i] <- "<.001***"
+    } else if (a[i] >= 0.001 & a[i] <= 0.01  ) {
+      a[i] <- paste0(a[i],"**")
+    } else if (a[i] > 0.01 & a[i] < 0.05) {
+      a[i] <- paste0(a[i],"*")
+    } else if (a[i] == 0.05) {
+      a[i] <- paste0(a[i],".")
+    }
+}
+
+x=round(coef(summary(x)),2)
+x[["pval"]]=a
+return(x)
+
+}
+
+```
+
+Other model details in tables:
+
+```{r, eval=F}
+t2=table.pimp(res.stage)
+
+
+huxtable(t2,add_colnames = T,add_rownames = T) %>% 
+  set_font_size(7) %>% 
+  set_caption("Supplemental Table II: Summary effects by rehabilitation stage") %>% 
+  set_bold(1,1:7,T) %>% 
+  set_font_size(1, 1:7, 8) %>% 
+  set_bottom_border(c(1,nrow(t2)+1),1:7,1) %>% 
+  huxtable::add_footnote("Note: Signif. codes: ‘***’ p ~ 0; ‘**’ p < .01; ‘*’ p < .05; ‘.’ p ~ .05") %>% 
+  set_font_size(row = nrow(t2)+2,col = 1:7, 7) %>% 
+  set_italic(row = nrow(t2)+2,col = 1:7,T) %>% 
+  as_flextable()
+
+
+huxtable(table(ma$stage)) %>% 
+  set_font_size(7) %>% 
+  set_caption("Supplemental Table III: Group comparisons by stage") %>% 
+  set_font_size(1, 1:2, 8) %>% 
+  set_top_border(1,1:2,1) %>% 
+  set_bottom_border(4,1:2,1) %>% 
+  as_flextable()
+
+```
+
+After fitting this model with the whole dataset, we can also determine whether there is a difference in the mean associations with cognitive recovery in studies with intervention, versus those without (i.e. observational cohorts).
+
+
+```{r filter out interv and obs, echo=T}
+ma.int=ma %>% filter(intervention=='yes')
+ma.obs=ma %>% filter(intervention=='no' & etiology!="healthy" & etiology!="tia") 
+
+```
+
+>**Note that** the same **R** syntax structure from the example model can be used to fit the rest of the variables, first for the pooled data; and then for intervention and cohort studies separately. The only part in the code that changes is the input dataset (`data = ma.int` or `data = ma.obs`, depending on what estimates are calculated).
+
+Fitting all the models can take up to 45 minutes (depending on processing power). The calculated effect sizes (along with their variability) can be extracted and saved into a common container, as we did in the `fp1.all` matrix. This same matrix will be used in the next section to create [summary forest plots](#average-effect-trials-plus-cohorts)
+
+***
+
+
+
+#  Summary Forest Plots 
+ 
+Before plotting the model results contained in the matrix `fp1.all`, we will manually add a name to each column as a string (or plane text), so that some description is visible in the final, summary forest plots. The new column names, along with their attributes can be saved in a separate table, which we will call `z.4`.
+
+> **Note**: All summary forest plots were created with the [`forestplot` package](https://cran.r-project.org/web/packages/forestplot/vignettes/forestplot.html).[@gordon_forestplot:_2019]. Itemized forest plots were created with the `forest` function from `metafor`. 
+
+The `fp1.all` is a table matrix and needs to be transformed into a `data.frame` for better handling with `forestplot`, as shown in the second step below:
+
+```{r forest plot setup, echo=T}
+z.4=cbind(c(' Moderators used \n            (df)',as.character(fp1.all$descriptor)),
+          c("Nr. of\nstudies", fp1.all$studies),
+          c("Group\ncomparisons", fp1.all$group.comp),
+          c("Sample\npooled", fp1.all$sample),
+          c("Effect Size\n (Hedges' g)", fp1.all$effect),
+          c("95% Conf. Int.\n[lower - upper]",as.character(fp1.all$ci.join)))
+
+
+z=data.frame(fp1.all)
+names(z)=colnames(fp1.all)
+z=rbind(NA,z)
+z=data.frame(z)
+
+###renaming variables
+z.4[grep("Interv type",z.4[,1]),1]="Intervention type***"
+z.4[grep("Patient",z.4[,1]),1]="Etiology***"
+z.4[grep("Quality",z.4[,1]),1]="Quality (risk of bias)***"
+z.4[grep("Stage",z.4[,1]),1]="Recovery stage***"
+z.4[grep("good|fair|poor|non-pharma|non-convent",
+         z.4[,1]),1]=c("       non-routine","       therapist-led",
+                       "       good (low)", "       fair (medium)", "       poor (high)")
+z.4=gsub("<65","< 65",gsub(">65-","65-",z.4))
+z.4=gsub("tia","TIA",gsub("hlcf","executive function",z.4))
+
+
+```
+
+##  Average Effect (trials plus cohorts)
+
+Model results obtained from the `ma` dataset. Effect size estimates were obtained with the whole of the data (`r length(unique(ma$id))` studies), without splitting the SMDs into studies with and without intervention.
+
+```{r summary plot (average), fig.height = 12, fig.width = 7}
+cairo_pdf("/Users/local folder in computer/Supplemental Figure I.pdf", height = 12, width = 7)
+mean=cbind(
+  c(as.numeric(as.character(z$effect))))
+lower=cbind(
+  c(as.numeric(as.character(z$lb))))
+upper=cbind(
+  c(as.numeric(as.character(z$ub))))
+
+positions=rep(F,nrow(z.4))
+positions[c(1,grep('\\*',z.4[,1]))]=T
+forestplot(z.4,mean=mean,
+             lower=lower,
+             upper=upper,
+             is.summary = positions,
+             fn.ci_norm = fpDrawCircleCI,
+             col=fpColors(box=c("gray70"),
+             line=c("gray"),
+             summary=c("grey28")),
+             legend_args = fpLegend(pos = list("bottom",
+                                               inset=.96,
+                                               align="horizontal"),
+                                    title="Group",
+                                    r = unit(.7, "snpc"),
+                                    gp = gpar(col="#CCCCCC",
+                                              lwd=1.5)),#surrounding line width
+             cex=.8, lineheight = "auto",
+           boxsize=z$effect*3, 
+           colgap=unit(1,"mm"),# separation of columns (make 5 when saving)
+             clip=c(-.3,1.1),# clipping effect size scale (can be clipped into logarithmic as well)
+             lwd.ci=2, ci.vertices=TRUE, ci.vertices.height = 0,
+             graphwidth = unit(2,"inches"), #make this line 2 when saving
+             line.margin = .6,# this line needs to be added to avoid crowding of the effect sizes
+             graph.pos = 4, #position of the graph in the table (column number)
+             xlab="                   <----------- Less recovery    ---     More recovery ----------->
+             Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05",
+             # title="Figure I: Forest Plot of Cognition After Stroke\n [mixed-effects model]",
+             txt_gp=fpTxtGp(label=gpar(cex=.7),#change this line to "1" before saving
+                            ticks=gpar(cex=.5),
+                            xlab=gpar(cex = .5),
+                            title=gpar(cex = 1)),
+             grid = TRUE,
+             xticks = c(-0.3, 0, .5, 1)
+            # hrzl_lines=list(
+            #    '8' = gpar(lwd=50, lineend="butt", columns=c(1:7), col="#99999922"),
+            #    "25" = gpar(lwd=80, lineend="butt", columns=c(1:7), col="#99999922"),
+            #    "51" = gpar(lwd=265, lineend="butt", columns=c(1:7), col="#99999922"),
+            #    "84" = gpar(lwd=75, lineend="butt", columns=c(1:7), col="#99999922"))
+            )
+dev.off()
+    
+```
+
+
+##  Intervention Versus Observational (split data)
+
+Figure 3 of our manuscript can be reproduced with the code provided below. In this case, model results from the `ma.int` and `ma.obs` datasets were graphed side-by-side, along with 95% CIs from the pooled data in `ma`. 
+
+
+```{r, fig.height = 10, fig.width = 7 , eval = F}
+cairo_pdf("/Users/local folder in computer/Fig-3.pdf", width = 7, height = 12)
+
+mean=cbind(
+    # c(as.numeric(as.character(z$effect))),
+    c(as.numeric(as.character(z$effect.1))),
+    c(as.numeric(as.character(z$effect.2))))
+  lower=cbind(
+    # c(as.numeric(as.character(z$low.ci))),
+    c(as.numeric(as.character(z$lb.1))),
+    c(as.numeric(as.character(z$lb.2))))
+  upper=cbind(
+    # c(as.numeric(as.character(z$up.ci))),
+    c(as.numeric(as.character(z$ub.1))),
+    c(as.numeric(as.character(z$ub.2))))
+  
+  positions=rep(F,nrow(z))
+  positions[c(1,grep('\\*',z[,1]))]=T
+  forestplot(z.4,
+             mean=mean,
+             lower=lower,
+             upper=upper,
+             is.summary= positions,
+             fn.ci_norm = c(fpDrawCircleCI, fpDrawCircleCI),
+             col=fpColors(box=c(
+               # "black",
+               "violetred4",
+               # "gray")
+               "grey70"),
+               line=c(
+                 "gray27",
+                 # "gray",
+                 "grey"),
+               summary=c(
+                 "black",
+                 "grey28")),
+             legend=c(
+               # "Average",
+               "Intervention",
+               "Observational"),
+             legend_args = fpLegend(pos = list("bottom",
+                                               inset=.95,
+                                               align="vertical"),
+                                    title="Design",
+                                    r = unit(.6, "snpc"),
+                                    padding = unit(4,"mm"),
+                                    gp = gpar(col="#CCCCCC",
+                                              lwd=1.5)),#surrounding line width
+             cex=.8, lineheight = "auto",
+             boxsize=
+               ifelse(
+                 is.na(z$effect.1*2),
+                 z$effect.2*2,
+                 z$effect.1*2),
+             colgap=unit(1,"mm"),# separation of columns
+             clip=c(-.35,1.2),# clipping effect size scale into logarithmic
+             lwd.ci=2, ci.vertices=TRUE, ci.vertices.height = 0,
+             graphwidth = unit(2,"inches"), #make this line 2 when saving
+             line.margin = .4,# this line needs to be added to avoid crowding of the effect sizes
+             graph.pos = 4, #position of the graph in the table (column number)
+             xlab="                   <----------- Less recovery    ---     More recovery ----------->
+             Signif. codes:  0 ‘***’ 0.001 ‘**’ 0.01 ‘*’ 0.05",
+             # title="Figure 3: Forest Plot of Cognition After Stroke\n [mixed-effects model]",
+             txt_gp=fpTxtGp(label=gpar(cex=.7),#change this line to "1" before saving
+                            ticks=gpar(cex=.5),
+                            xlab=gpar(cex = .5),
+                            title=gpar(cex = 1)),
+             grid = TRUE,
+             xticks = c(-0.3, 0, .5, 1),
+             # hrzl_lines=list(
+             #   '8' = gpar(lwd=50, lineend="butt", columns=c(1:7), col="#99999922"),
+             #   "25" = gpar(lwd=80, lineend="butt", columns=c(1:7), col="#99999922"),
+             #   "51" = gpar(lwd=265, lineend="butt", columns=c(1:7), col="#99999922"),
+             #   "84" = gpar(lwd=75, lineend="butt", columns=c(1:7), col="#99999922"))
+             )
+dev.off()
+```
+
+##  Model Estimates (in tables)
+
+```{r, model data, eval=T}
+
+
+cols=grep("effect|ub|lb",colnames(fp1.all))
+for (i in seq_along(cols)) {
+ fp1.all[,cols[i]]=round(as.numeric(as.character(fp1.all[,cols[i]])),2)
+}
+
+
+models.table=fp1.all[-which(is.na(fp1.all[,"descriptor"])),
+                     grep("desc|group|stud|samp|1|2",colnames(fp1.all))]
+
+models.table=models.table[-grep("Overall",models.table[,"descriptor"]),]
+
+models.table[is.na(models.table)] <- ""
+
+models.table[,"descriptor"] <- gsub("-ever|interv.|interv|emic|tual| cognition","",models.table[,"descriptor"])
+
+models.table[-which(models.table[,"lb.1"]==""),"lb.1"]=
+  paste0(models.table[-which(models.table[,"lb.1"]==""),"lb.1"],", ",
+         models.table[-which(models.table[,"lb.1"]==""),"ub.1"])
+
+models.table[-which(models.table[,"lb.2"]==""),"lb.2"]=
+  paste0(models.table[-which(models.table[,"lb.2"]==""),"lb.2"],", ",
+         models.table[-which(models.table[,"lb.2"]==""),"ub.2"])
+
+models.table <- models.table[,-grep("ub.1|ub.2",names(models.table))]
+
+colnames(models.table)=c("Descriptor", 
+                                    "Group comparisons",
+                                    "Nr. of studies",
+                                    "Sample",
+                                    "SMD \nIntervention",   
+                                    "95% C.I. Int.",
+                                    "SMD \nObservational", 
+                                    "95% C.I. Obs."
+                                    )
+
+huxtable(models.table,add_colnames = T) %>% 
+               set_font_size(7) %>% 
+               set_col_width(c(1.5,1,
+                               .6,.5,
+                               .8,.7,
+                               .8,.7
+                               )) %>%
+  set_bold(1,1:8,T) %>% 
+  set_font_size(1, 1:8, 8) %>% 
+  set_caption("Supplemental Table IV: Summary estimates for study variables") %>% 
+  set_bottom_border(c(1,nrow(models.table)+1),1:8,1) %>% 
+  huxtable::add_footnote("Note: Signif. codes: ‘***’ p ~ 0; ‘**’ p < .01; ‘*’ p < .05; ‘.’ p ~ .05.
+                         Abbreviations: hem, hemorrhagic; hlcf, higher-level cognitive function; isch, ischemic; psych-mot sp, psychomotor speed; tia, transient ischemic attack; visuo-percep, visuoperceptual function",border = 0) %>% 
+  set_font_size(row = nrow(models.table)+2,col = 1:8, 7) %>% 
+  set_italic(row = nrow(models.table)+2,col = 1:8,T) %>% 
+  as_flextable()
+
+```
+
+#  Meta-Analysis with Multiple Moderators
+
+In this section we will only be looking at studies with controlled interventions. Items in the manuscript are reported following the PRISMA guidelines.[@moher_preferred_2009]
+
+
+##  Time and Intervention (additive model)
+
+Multivariable, mixed-effects models were calculated using a subset of the data containing controlled intervention studies only (`ma.int` dataset). Estimates obtained from these studies allowed us to look at the associations with cognitive recovery across different experimental treatments. Two variables of interest were used in this analysis. The `stage` variable, which contains information on the time at which the evaluations were carried out; and the `interv.type` variable, which refers to the types of intervention being studied (as explained in the [variables of interest section](#variables-analyzed)). The following syntax illustrates these two variables in a multivariable, additive model:
+
+$$effect =\ \sim ~ stage + interv.type$$
+***
+
+
+The variance structure can be included in our meta-regression equation, as described in the [section 4.3](#accounting-for-multiple-comparisons-within-studies):
+
+$$random = list ( \sim group.id\ |\ id,\  \sim stage\ |\ group.id)$$
+
+***
+
+
+The final **R** syntax for this model would be:
+
+```{r model additive, echo=T, eval=T}
+
+res.additive <-rma.mv(yi, vi, mods = ~ stage + interv.type -1,
+                          random = list(~ group.id | id, ~ stage | group.id),  
+                            data = ma.int)
+
+res.interv.type <-rma.mv(yi, vi, mods = ~ interv.type -1,
+                          random = list(~ group.id | id, ~ stage | group.id),  
+                            data = ma.int)
+```
+
+>**Please note** that the effect estimate $yi$ was multiplied by their additive inverse `(*-1)`for better interpretation in the line graphs. Further, we are again removing the intercept from this model using the $-1$ in the `mods` argument.
+
+###  Profiling the Model (additive)
+
+At this stage, the proposed model contains many parameters. For instance, each study subgroup (n=`r length(ranef(res.additive)[1][[1]][,'intrcpt'])`), or random effect, at each timepoint (n=`r length(ranef(res.additive)[2][[1]][,'intrcpt'])`) will have its own slope. When fitting complex models, it is pivotal to corroborate that the model is not being over-fitted with parameters. The `profile()` function can be used to create a visual representation of the range of parameters compared by the REML method. This function takes a particular parameter of the model (in our case the variance or correlation), and computes a maximized (restricted) log-likelihood over the remaining parameters. By doing this for a range of values for the parameter that was fixed, a profile is constructed.
+
+An over-fitted model would yield a plot with truncated lines between parameter estimations (points at each end of the line), meaning that the model parameters did not converge. Therefore providing a clear indication that the model did not fit the data well. 
+
+```{r profile additive, fig.height=8, fig.width=11, echo=T}
+par(mfrow=c(2,2))
+profile(res.additive, progbar = F)
+
+```
+The results for this model would be:
+                                    
+                          Multivariate Meta-Analysis Model (k = 408; method: REML)
+
+                                            Variance Components:
+                                    
+                                    outer factor: id       (nlvls = 42)
+                                    inner factor: group.id (nlvls = 87)
+                                    
+                                                estim    sqrt  fixed 
+                                    tau^2      0.0880  0.2966     no 
+                                    rho        0.8829             no 
+                                    
+                                    outer factor: group.id (nlvls = 87)
+                                    inner factor: stage    (nlvls = 4)
+                                    
+                                                estim    sqrt  fixed 
+                                    gamma^2    0.0501  0.2238     no 
+                                    phi        0.1697             no 
+                                    
+                                    Test for Residual Heterogeneity:
+                                    QE(df = 401) = 1004.6725, p-val < .0001
+                                    
+                                    Test of Moderators (coefficients 1:7):
+                                    QM(df = 7) = 93.7391, p-val < .0001
+
+
+
+```{r model additive table, eval=T}
+
+
+t5=table.pimp(res.additive)
+
+
+huxtable(t5,add_colnames = T,add_rownames = T) %>% 
+  set_font_size(7) %>% 
+  set_caption("Supplemental Table V: Associations with cognitive recovery based on the additive model") %>% 
+  set_bold(1,1:7,T) %>% 
+  set_font_size(1, 1:7, 8) %>% 
+  set_bottom_border(c(1,nrow(t5)+1),1:7,1) %>% 
+  huxtable::add_footnote("Note: Signif. codes: ‘***’ p ~ 0; ‘**’ p < .01; ‘*’ p < .05; ‘.’ p ~ .05") %>% 
+  set_font_size(row = nrow(t5)+2,col = 1:7, 7) %>% 
+  set_italic(row = nrow(t5)+2,col = 1:7,T) %>% 
+  as_flextable()
+
+```
+
+Making sure there are at least two groups to compare in each stage:
+
+```{r table group comp interv type, eval=T}
+t6=table(ma.int$interv.type, ma.int$stage)  
+
+huxtable(t6) %>% 
+  set_col_width(c(2,1.5,1)) %>%
+  set_font_size(7) %>% 
+  set_caption("Supplemental Table VI: Number of group comparisons by treatment type and stage") %>% 
+  set_font_size(1, 1:3, 8) %>% 
+  set_top_border(1,1:3,1) %>% 
+  set_bottom_border(length(t6),1:3,1) %>% 
+  as_flextable()
+
+
+  
+```
+
+##  Interpreting the Model (additive)
+  
+Our first mixed-effects, multivariate model looking at the variables `stage` and `interv.type` is based on the additive model. This model accounts for the influence of each variable level, but does not allow the different levels to interact.
+
+After running the model with the `rma.mv()` function, the first coefficient in the table is the first level of the `stage` variable $1-60\ days$. The estimated average standardized mean difference for this level is $0.416$, which is significantly different from zero $(p=.008)$. The 95% confidence interval for this estimate goes from $0.106 - 0.725$, which is relatively wide, indicating some uncertainty about where the true effect size lies.
+
+From this model, one can also note that while the `stage` levels seem to have a significant association with cognition (except for the $>729 \ days$ level), the `interv.type` levels do not. Again, this model is accounting (adjusting) for the influence of the different levels of each variable, but it is not allowing the `stage` and `intev.type` levels to interact.
+
+***
+
+Looking at the model as a whole, time after stroke (`stage` variable) is significantly associated with the outcome (cognition), when adjusting for the influence of different interventions. However, as highlighted, in this first approach we are assuming an additive (linear) influence of the different variable levels, which might not be an accurate representation of the reality, as different interventions may have different effects on cognition at different timepoints. 
+
+For further details on how to fit and interpret multivariate models, please see the meta-regression methods outlined by Higgins [@higgins_controlling_2004] and Thompson [@thompson_how_2002]; and the step-by-step guides outlined in the [`metafor` site](http://www.metafor-project.org/doku.php/tips:multiple_factors_interactions)
+
+
+##  Time and Intervention (as an interaction)
+
+A second, more complex model, would be that in which all levels of the two variables interact, meaning that we are calculating the multiplicative (or joint) effect of the `stage` and `interv.type` variables together. This model would be closer to what happens in reality, as the effect of an intervention is likely to depend on the time at which it was administered.
+
+There are two different forms to code multiplicative models in `metafor`:
+
+**Syntax #1**:
+
+```{r, eval=F, echo=T}
+    
+   rma.mv(yi, vi, mods = ~ stage * interv.type - 1, 
+          list(~ group.id | id, ~ stage | group.id),
+          data = ma.int)
+
+```
+
+
+**Syntax #2**:
+
+
+```{r, eval=F, echo=T}
+
+    rma.mv(yi, vi, mods = ~ stage : interv.type - 1,
+           list(~ group.id | id, ~ stage | group.id),
+           data = ma.int)  
+
+```
+
+
+The second code syntax is more useful as it provides effect estimates for all possible combinations of the two levels. To save the model results, the assign function "<-" can be used:
+
+```{r model multip, fig.height=8, fig.width=11, eval=T, echo=T}
+res.inter.multip <- rma.mv(yi, vi, 
+                    random =  list(~ group.id | id, ~ stage | group.id),
+                    mods = ~ stage:interv.type - 1, 
+                    data=ma.int)
+
+
+```
+###  Profiling the Model (multiplicative)
+
+```{r inter full profile, fig.height=8, fig.width=11,echo=T}
+par(mfrow=c(2,2))
+profile(res.inter.multip, progbar = F)
+
+```
+
+
+And the model results:  
+
+
+                      Multivariate Meta-Analysis Model (k = 408; method: REML)
+
+                                        Variance Components:
+                                
+                                outer factor: id       (nlvls = 42)
+                                inner factor: group.id (nlvls = 87)
+                                
+                                            estim    sqrt  fixed 
+                                tau^2      0.0731  0.2703     no 
+                                rho        0.8161             no 
+                                
+                                outer factor: group.id (nlvls = 87)
+                                inner factor: stage    (nlvls = 4)
+                                
+                                             estim    sqrt  fixed 
+                                gamma^2     0.0555  0.2357     no 
+                                phi        -0.0350             no 
+                                
+                                Test for Residual Heterogeneity:
+                                QE(df = 392) = 946.9000, p-val < .0001
+                                
+                                Test of Moderators (coefficients 1:16):
+                                QM(df = 16) = 112.6793, p-val < .0001  
+
+
+
+```{r multip model table, eval=T}
+
+t7=table.pimp(res.inter.multip) 
+
+huxtable(t7,add_colnames = T,add_rownames = T) %>% 
+  set_font_size(7) %>% 
+  set_col_width(c(2,.6,.6,.6,.6,.6,.6)) %>%
+  set_caption("Supplemental Table VII: Associations with cognitive recovery based on the multiplicative model") %>% 
+  set_bold(1,1:7,T) %>% 
+  set_font_size(1, 1:7, 8) %>% 
+  set_bottom_border(c(1,nrow(t7)+1),1:7,1) %>% 
+  huxtable::add_footnote("Note: Signif. codes: ‘***’ p ~ 0; ‘**’ p < .01; ‘*’ p < .05; ‘.’ p ~ .05") %>% 
+  set_font_size(row = nrow(t7)+2,col = 1:7, 7) %>% 
+  set_italic(row = nrow(t7)+2,col = 1:7,T) %>% 
+  as_flextable()
+
+
+
+```
+
+
+##  Interpreting the Model (multiplicative)
+
+This model provides an explanation that might make more sense clinically: different treatments have different associations with cognitive recovery at different times. It is interesting to note that no treatment reaches statistical significance in the late chronic phase (>2 years after stroke). While the results from this model have to be interpreted very cautiously, we can say with confidence that the time of intervention is significantly associated with recovery of cognitive function. More importantly, this model (as well as our [previous model](#mixed-model-fitting-example-for-all-data)) suggest that the association between treatment and cognitive recovery wanes, or weakens over time, especially > 2 years after stroke.
+
+
+
+#  Visual Representation of Meta-Regression Models
+
+##  Multiplicative Model (code only)
+```{r multiplicative, warning=F, eval =F, fig.height=5,fig.width=10}
+
+cairo_pdf("/Users/local folder in computer/Fig-4.pdf", 
+          height = 5, width = 10)
+par(mar=c(5,4,2,1))
+SMD=coef(res.inter.multip);SE=res.inter.multip$se
+a=1:4;b=1.1:4.1;c=0.9:3.9;d=0.8:3.8; e=.85:3.85  
+plot(SMD[1:4], type="o", pch=19, xlim=c(0.8,4.3), ylim=c(-0.3,1.2), 
+     xlab="Rehabilitation stage (days after stroke onset)", 
+     ylab="Effect on overall cognition (SMD ± SE)", 
+     xaxt="n", bty="l",cex.lab = 1, 
+     col ="grey50")
+
+axis(side=1, at=1:4,labels=c("Acute stage\n1-60 days","Sub-acute stage\n61-180 days",
+                             "Chronic stage\n181-729 days",'Long-term\n>729 days'),
+     cex.axis=.8)
+lines(b,SMD[5:8], type="o", pch=15, lty="dotted", col = "dodgerblue")
+lines(c,SMD[9:12], type="o", pch=19, lty="dashed", col = 'firebrick1')
+lines(d,SMD[13:16], type="o", pch=15, lty="dashed", col = "goldenrod3")
+lines(e,res.stage.obs$b, type="o", pch=22, lty="solid", col = "black",lwd=2)
+
+
+legend("topright", 
+       legend=c("Therapist-led intervention", "Non-routine and alternative","Pharmacological","Usual care", "Observational cohorts"), 
+       lty=c("solid", "dotted","dashed", "dotdash", "solid"), 
+       col = c("grey50","dodgerblue","firebrick1","goldenrod3", "black"),
+       pch=c(19,15,19,15,22), inset=0.05,cex=.8)
+# title("Figure 4: Average associations of intervention with cognitive function after stroke\nbased on the multiplicative model")
+abline(h = 0,col="gray", lwd=1, lty="dashed")
+segments(a,SMD[1:4]-SE[1:4],a,SMD[1:4]+SE[1:4],col ="grey50")
+segments(b,SMD[5:8]-SE[5:8],b,SMD[5:8]+SE[5:8],col ="dodgerblue")
+segments(c,SMD[9:12]-SE[9:12],c,SMD[9:12]+SE[9:12],col ="firebrick1")
+segments(d,SMD[13:16]-SE[13:16],d,SMD[13:16]+SE[13:16],col ="goldenrod3")
+segments(e,res.stage.obs$b + res.stage.obs$se,e,res.stage.obs$b - res.stage.obs$se,col ="black")
+
+dev.off()
+
+```
+
+##  Additive Model
+
+```{r additive,fig.height=5,fig.width=8}
+cairo_pdf("Fig3a.pdf", height = 5, width = 8)
+a=1:4;b=1.1:4.1;c=0.9:3.9;d=0.8:3.8;e=.85:3.85  
+SMD=coef(res.additive);SE=res.additive$se
+plot(coef(res.additive)[1:4], type="o", pch=19, xlim=c(0.8,4.3), ylim=c(-0.3,1.2), 
+     xlab="Rehabilitation stage (days after stroke onset)", 
+     ylab="Effect on overall cognition (SMD ± SE)", 
+     xaxt="n", bty="l",cex.lab = 1,
+     col ="grey50")
+axis(side=1, at=1:4, 
+     labels=c("Acute Care\n1-60 days","Sub-Acute Phase\n61-180 days","Chronic Phase\n181-729 days",'Long Term\n>720 days'),cex.axis=.8)
+lines(b,SMD[1:4] + SMD[5], type="o", pch=15, lty="dotted", col = "dodgerblue")
+lines(c,SMD[1:4] + SMD[6], type="o", pch=19, lty="dashed", col = 'firebrick1')
+lines(d,SMD[1:4] + SMD[7], type="o", pch=15, lty="dotdash", col = "goldenrod3")
+lines(e,res.stage$b, type="o", pch=22, lty="solid", col = "black",lwd=2)
+legend("topright", 
+       legend=c("Therapist-led intervention", "Non-routine and alternative","Pharmacological","Usual care", "Observational cohort"), 
+       lty=c("solid", "dotted","dashed", "dotdash","solid"), 
+       col = c("grey50","dodgerblue","firebrick1","goldenrod3","black"),
+       pch=c(19,15,19,15,22), inset=0.05,cex=.5)
+title("Figure IV: Average associations of intervention with cognitive function after\n stroke based on the additive model")
+abline(h = 0,col="gray", lwd=1, lty="dashed")
+segments(a,SMD[1:4]-SE[1:4],a,SMD[1:4]+SE[1:4],col ="grey50")
+segments(b,SMD[1:4]+SMD[5]-SE[5],b,SMD[1:4]+SMD[5]+SE[5],col ="dodgerblue")
+segments(c,SMD[1:4]+SMD[6]-SE[6],c,SMD[1:4]+SMD[6]+SE[6],col ="firebrick1")
+segments(d,SMD[1:4]+SMD[7]-SE[7],d,SMD[1:4]+SMD[7]+SE[7],col ="goldenrod3")
+segments(e,res.stage$b + res.stage$se,e,res.stage$b - res.stage$se,col ="black")
+
+dev.off()
+```
+
+
+
+#  Complete Forest Plots for All Phases
+
+This section contains full-size forest plots, with details about all the estimates calculated for each study, at evaluation time-point. The first set of forest plots represent separate meta-analyses completed for all studies with intervention, divided into the different rehabilitation phases. The second set contains forest plots for observational studies only. Please note that the code syntax across analyses is similar. Therefore only one figure is provided in this document. The remaining code syntax for the other phases can be found in our [GitHub portal](https://github.com/jpsaa/meta-analysis-cognition).
+
+##  Studies with Intervention 
+###  Acute Phase
+```{r, acute interv, fig.height=13, fig.width=13}
+CairoPDF("/Users/local folder in computer/1.acute.pdf", height=13, width=13)
+  par(mar=c(4,4,5,2))
+#### 'par' is the parameters to be set
+#### 'mar' is the number of lines that I want as a margin (bottom, left, top, right)
+  par(font=1, cex=.8)
+  
+  ### intervention and observation
+  ac=ma.int
+  ac=ma.int[ma.int$stage=='1-60 days',]
+  ac$interv.type <- factor(ac$interv.type,
+                                   levels = c(
+                                     "non-routine interv",
+                                     "therapist-led interv",
+                                     "pharmacological",
+                                     "usual care" ))
+  usual=data.frame(table(ac$interv.type))[4,2]+6
+  pharma=data.frame(table(ac$interv.type))[3,2]+usual+6
+  non.pharma=data.frame(table(ac$interv.type))[2,2]+pharma+6
+  mixed=data.frame(table(ac$interv.type))[1,2]+non.pharma+6
+  ###Running the model
+  res.ac=rma.mv(yi, vi, data=ac, slab = id,
+                # mods = ~ interv.type -1,
+                random = ~ group.id | id)
+  
+  ###cleaning names for authors
+  authors=trimws(gsub('et al.| and| Halper| Kulkantrakorn|-Witlox|-Iluz|ares','',ac$author))
+  
+  forest(res.ac, 
+         order = order(ac$interv.type, ac$day2i, ac$yi), ### ordering columns - first by
+         # intervention type, then by days after stroke, and then by effect
+         slab = paste(authors,ac$year, sep = ', '),
+         # slab = ac$id,
+          
+         xlim = c(-11,5.2),
+         cex.lab=1.2,
+         cex.axis = 1.2,
+         cex=.8,
+         xlab = "Standardized Mean Difference",
+         
+         # Rows below are organized by interv types
+         
+         rows=c(
+           (((mixed):(non.pharma+7))),
+           (non.pharma:(pharma+7)),
+           (pharma:(usual+7)),
+           (usual:7)
+         ),
+         
+         ylim=c(-3, ### in a very large forest plot this value needs to start up high so 
+  # that the bottom reference line can be seen (but not extremely high, otherwise it will cut 
+  # the bottom line)
+                mixed+9),
+         ilab = cbind(ac$n2i,
+                      paste0(round(ac$day1i),'-',round(ac$day2i)),
+                      gsub('global cognition','global cog',ac$domain),
+                      as.character(ac$instrument.detail),
+                      as.character(ac$group.id.orig)),
+         ilab.xpos = c(-9.2,-8.5,-7,-5.7,-4.2),
+         # mlab="",
+         addfit = T,
+         # addcred = T, # to dd credibility limits
+         # col=c("indianred1", "green"), # to add some color
+         efac = 0.5,
+         showweights = F
+  )
+  
+  par(font=2, cex=1)
+  text(-10.8, mixed+5, "Study",  pos=4)
+  text(-4.8, mixed+5, "    Study\nSubgroup", pos=4)
+  text(5.1, mixed+5, "Standardized Mean Difference [95% CI]", pos=2)
+  text(-9.35, mixed+5, "N", pos=4)
+  text(-9, mixed+5, "  Time int-\nerval (days)", pos=4)
+  text(-7.55, mixed+5, "    ICF \nDomain", pos=4)
+  text(-6.45, mixed+5, "Cogn. Test", pos=4)
+  par(font=1, cex=1.5)
+  # text(-6.9,  mixed+9.5, 
+  #      "Effect of Different Interventions on Cognition After Stroke \n    Acute Stage [1-60 days after symptom onset]",pos=4)
+  
+    par(font=4, cex=1.2)
+    text(-9.3, c(usual+1.5,pharma+1.5,non.pharma+1.5,mixed+1.5), pos=4, 
+         c("Usual Care",
+           "Pharmacological Interventions",
+           "Therapist-led Interventions",
+           "Non-routine and alternative Interventions"))
+    par(font=4, cex=1.2)
+    text(-11, c(5.5,usual+5.5,pharma+5.5,non.pharma+5.5), pos=4, 
+         c("Overall effect usual care",
+           "Overall effect pharmacological interventions", 
+           "Overall effect therapist-led interventions",
+           "Overall effect non-routine and alternative interventions"))
+    
+  
+    res.clinic <- rma.mv(yi, vi, data=ac,
+                         subset=(interv.type=='therapist-led interv'),
+                         slab = id, random = ~ 1 | group.id)
+    res.mixed <- rma.mv(yi, vi, data=ac,
+                        subset=(interv.type=='non-routine interv'),
+                        slab = id, random = ~ group.id | id)
+    res.pharma <- rma.mv(yi, vi, data=ac,
+                         subset=(interv.type=='pharmacological'),
+                         slab = id, random = ~ group.id | id)
+    res.usual <- rma.mv(yi, vi, data=ac,
+                        subset=(interv.type=='usual care'),
+                        slab = id, random = ~ group.id | id)
+    
+    
+    par(font = 2, cex= .9)
+    # addpoly(res, row=-2, mlab="", efac = 1, col = "maroon")
+    text(-7.9, -3, pos=3, 
+         bquote(paste("All Studies (Q = ",
+                      .(formatC(res.ac$QE, digits=2, format="f")), 
+                      ", df = ", .(res.ac$k - res.ac$p),
+                      ", p = ", .(formatC(res.ac$QEp, digits=2, format="f")), 
+                      "; ",tau^2, " = ",.(formatC(res.ac$tau2, digits=2, format="f")), ")")))
+    
+    par(font=4, cex = .9)
+    ### non-convent (mixed interv)
+    text(-10.9, non.pharma+4, pos=4,
+         bquote(paste("RE Model for non-routine interventions  (Q = ",
+                      .(formatC(res.mixed$QE, digits=2, format="f")),
+                      ", df = ", .(res.mixed$k - res.mixed$p),
+                      ", p = ", .(formatC(res.mixed$QEp, digits=2, format="f")),
+                      "; ", tau^2, " = ",.(formatC(res.mixed$tau2, digits=2, format="f")), ")")))
+    
+    ### therapist-led intervention
+    text(-10.9, pharma+4, pos=4, 
+         bquote(paste("RE Model for therapist-led interventions (Q = ",
+                      .(formatC(res.clinic$QE, digits=2, format="f")),
+                      ", df = ", .(res.clinic$k - res.clinic$p),
+                      ", p = ", .(formatC(res.clinic$QEp, digits=2, format="f")), 
+                      "; ", sigma^2, " = ",.(formatC(res.clinic$tau2, digits=2, format="f")), ")")))
+
+    ### Pharmacological
+    text(-10.9, usual+4, pos=4, 
+         bquote(paste("RE Model for pharmacological interventions (Q = ",
+                      .(formatC(res.pharma$QE, digits=2, format="f")), 
+                      ", df = ", .(res.pharma$k - res.pharma$p),
+                      ", p = ", .(formatC(res.pharma$QEp, digits=2, format="f")), "; ",
+                      tau^2, " = ",.(formatC(res.pharma$tau2, digits=2, format="f")), ")")))
+    
+    ### Usual care
+    text(-10.9, 4, pos=4, 
+         bquote(paste("RE Model for usual care (Q = ",
+                      .(formatC(res.usual$QE, digits=2, format="f")),
+                      ", df = ", .(res.usual$k - res.usual$p),
+                      ", p = ", .(formatC(res.usual$QEp, digits=2, format="f")), "; ",
+                      tau^2, " = ",.(formatC(res.usual$tau2, digits=2, format="f")), ")")))
+    
+    
+    par(cex = 1.8)
+    addpoly(res.mixed, row= non.pharma+3.5, mlab="", col = "white", efac = .5)
+    addpoly(res.clinic, row= pharma+3.5 , mlab="", col = "white", efac = .5)
+    addpoly(res.pharma, row= usual+3.5,  mlab="", col = "white", efac = .5)
+    addpoly(res.usual, row= 3.5 , mlab="", col = "white", efac = .5)
+    
+    
+  dev.off()
+    
+   
+  
+
+
+```
+
+
+###  Subacute Phase
+```{r, subacute interv, fig.height=22, fig.width=13, echo=T}
+CairoPDF("/Users/local folder in computer/2.sub-acute.pdf", height=22, width=13)
+par(mar=c(4,4,5,2))
+  par(font=1, cex=.8)
+  ### intervention and observation
+  sac=ma.int[ma.int$stage=='61-180 days',]
+  
+  sac$interv.type <- factor(sac$interv.type,
+                                   levels = c(
+                                     "non-routine interv",
+                                     "therapist-led interv",
+                                     "pharmacological",
+                                     "usual care" ))
+  
+  usual=data.frame(table(sac$interv.type))[4,2]+6
+  pharma=data.frame(table(sac$interv.type))[3,2]+usual+6
+  non.pharma=data.frame(table(sac$interv.type))[2,2]+pharma+6
+  mixed=data.frame(table(sac$interv.type))[1,2]+non.pharma+6
+  ###Running the model
+  res.sac=rma.mv(yi, vi, data=sac, slab = id,
+                # mods = ~ interv.type -1,
+                random = ~ group.id | id)
+  
+  ###cleaning names for authors
+  authors=trimws(gsub('et al.| and| Halper| Kulkantrakorn|-Witlox|-Iluz|ares','',sac$author))
+  
+  forest(res.sac, 
+         order = order(sac$interv.type, sac$day2i, sac$yi), ### ordering columns - first by
+         # intervention type, then by days after stroke, and then by effect
+         slab = paste(authors,sac$year, sep = ', '),
+         # slab = sac$id,
+          
+         xlim = c(-11,6.5),
+         cex.lab=1.2,
+         cex.axis = 1.2,
+         cex=.8,
+         xlab = "Standardized Mean Difference",
+         
+         # Rows below are organized by interv types
+         
+         rows=c(
+           (((mixed):(non.pharma+7))),
+           (non.pharma:(pharma+7)),
+           (pharma:(usual+7)),
+           (usual:7)
+         ),
+         
+         ylim=c(-3, ### in a very large forest plot this value needs to start up high so 
+  # that the bottom reference line can be seen (but not extremely high, otherwise it will cut 
+  # the bottom line)
+                mixed+9),
+         ilab = cbind(sac$n2i,
+                      paste0(round(sac$day1i),'-',round(sac$day2i)),
+                      gsub('global cognition','global cog',sac$domain),
+                      as.character(sac$instrument.detail),
+                      as.character(sac$group.id.orig)),
+         ilab.xpos = c(-9.2,-8.1,-6.6,-5,-3.3),
+         # mlab="",
+         addfit = T,
+         # addcred = T, # to dd credibility limits
+         # col=c("indianred1", "green"), # to add some color
+         efac = 0.5,
+         showweights = F
+  )
+  
+  par(font=2, cex=1)
+  text(-10.9, mixed+5, "Study",  pos=4)
+  text(-3.9, mixed+5, "    Study\nSubgroup", pos=4)
+  text(5.1, mixed+5, "Standardized Mean Difference [95% CI]", pos=2)
+  text(-9.2, mixed+5, "N", pos=4)
+  text(-8.6, mixed+5, "  Time int-\nerval (days)", pos=4)
+  text(-7.15, mixed+5, "    ICF \nDomain", pos=4)
+  text(-5.8, mixed+5, "Cogn. Test", pos=4)
+  par(font=1, cex=1.5)
+  # text(-6.9,  mixed+9.5, 
+  #      "Effect of Different Interventions on Cognition After Stroke \n    Sub-Acute Stage [61-180 days after symptom onset]",pos=4)
+  
+    par(font=4, cex=1.2)
+    text(-9.3, c(usual+1.5,pharma+1.5,non.pharma+1.5,mixed+1.5), pos=4, 
+         c("Usual Care",
+           "Pharmacological Interventions",
+           "Therapist-led Interventions",
+           "Non-routine and alternative Interventions"))
+    par(font=4, cex=1.2)
+    text(-11, c(5.5,usual+5.5,pharma+5.5,non.pharma+5.5), pos=4, 
+         c("Overall effect usual care",
+           "Overall effect pharmacological interventions", 
+           "Overall effect therapist-led interventions",
+           "Overall effect non-routine and alternative interventions"))
+    
+  
+    res.clinic <- rma.mv(yi, vi, data=sac,
+                         subset=(interv.type=='therapist-led interv'),
+                         slab = id, random = ~ 1 | group.id)
+    res.mixed <- rma.mv(yi, vi, data=sac,
+                        subset=(interv.type=='non-routine interv'),
+                        slab = id, random = ~ group.id | id)
+    res.pharma <- rma.mv(yi, vi, data=sac,
+                         subset=(interv.type=='pharmacological'),
+                         slab = id, random = ~ group.id | id)
+    res.usual <- rma.mv(yi, vi, data=sac,
+                        subset=(interv.type=='usual care'),
+                        slab = id, random = ~ group.id | id)
+    
+    
+    par(font = 2, cex= .9)
+    # addpoly(res, row=-2, mlab="", efac = 1, col = "maroon")
+    text(-7.9, -3, pos=3, 
+         bquote(paste("All Studies (Q = ",
+                      .(formatC(res.sac$QE, digits=2, format="f")), 
+                      ", df = ", .(res.sac$k - res.sac$p),
+                      ", p = ", .(formatC(res.sac$QEp, digits=2, format="f")), 
+                      "; ",tau^2, " = ",.(formatC(res.sac$tau2, digits=2, format="f")), ")")))
+    
+    par(font=4, cex = .9)
+    ### non-convent (mixed interv)
+    text(-10.9, non.pharma+4, pos=4,
+         bquote(paste("RE Model for non-routine and alternative interventions  (Q = ",
+                      .(formatC(res.mixed$QE, digits=2, format="f")),
+                      ", df = ", .(res.mixed$k - res.mixed$p),
+                      ", p = ", .(formatC(res.mixed$QEp, digits=2, format="f")),
+                      "; ", tau^2, " = ",.(formatC(res.mixed$tau2, digits=2, format="f")), ")")))
+    
+    ### therapist-led intervention
+    text(-10.9, pharma+4, pos=4, 
+         bquote(paste("RE Model for therapist-led interventions (Q = ",
+                      .(formatC(res.clinic$QE, digits=2, format="f")),
+                      ", df = ", .(res.clinic$k - res.clinic$p),
+                      ", p = ", .(formatC(res.clinic$QEp, digits=2, format="f")), 
+                      "; ", sigma^2, " = ",.(formatC(res.clinic$tau2, digits=2, format="f")), ")")))
+
+    ### Pharmacological
+    text(-10.9, usual+4, pos=4, 
+         bquote(paste("RE Model for pharmacological interventions (Q = ",
+                      .(formatC(res.pharma$QE, digits=2, format="f")), 
+                      ", df = ", .(res.pharma$k - res.pharma$p),
+                      ", p = ", .(formatC(res.pharma$QEp, digits=2, format="f")), "; ",
+                      tau^2, " = ",.(formatC(res.pharma$tau2, digits=2, format="f")), ")")))
+    
+    ### Usual care
+    text(-10.9, 4, pos=4, 
+         bquote(paste("RE Model for usual care (Q = ",
+                      .(formatC(res.usual$QE, digits=2, format="f")),
+                      ", df = ", .(res.usual$k - res.usual$p),
+                      ", p = ", .(formatC(res.usual$QEp, digits=2, format="f")), "; ",
+                      tau^2, " = ",.(formatC(res.usual$tau2, digits=2, format="f")), ")")))
+    
+    
+    par(cex = 2.8)
+    addpoly(res.mixed, row= non.pharma+3.5, mlab="", col = "white", efac = .5)
+    addpoly(res.clinic, row= pharma+3.5 , mlab="", col = "white", efac = .5)
+    addpoly(res.pharma, row= usual+3.5,  mlab="", col = "white", efac = .5)
+    addpoly(res.usual, row= 3.5 , mlab="", col = "white", efac = .5)
+    
+  dev.off()
+  
+
+
+```
+
+###  Chronic Phase
+```{r, chronic interv, fig.height=24, fig.width=13, echo=T}
+CairoPDF("/Users/local folder in computer/3.chronic.pdf", height=24, width=13)  
+  par(mar=c(4,4,5,2))
+  par(font=1, cex=.8)
+  ### intervention and observation
+  lt=ma.int[ma.int$stage=='181-729 days',]
+  # lt=lt[lt$n1i>=11,]
+  
+  lt$interv.type <- factor(lt$interv.type,
+                                   levels = c(
+                                     "non-routine interv",
+                                     "therapist-led interv",
+                                     "pharmacological",
+                                     "usual care" ))
+  usual=data.frame(table(lt$interv.type))[4,2]+6
+  pharma=data.frame(table(lt$interv.type))[3,2]+usual+6
+  non.pharma=data.frame(table(lt$interv.type))[2,2]+pharma+6
+  mixed=data.frame(table(lt$interv.type))[1,2]+non.pharma+6
+  ###Running the model
+  res.lt=rma.mv(yi, vi, data=lt, slab = id,
+                # mods = ~ interv.type -1,
+                random = ~ group.id | id)
+  
+  ###cleaning names for authors
+  authors=trimws(gsub('et al.| and| Halper| Kulkantrakorn|-Witlox|-Iluz|ares','',lt$author))
+  
+  forest(res.lt, 
+         order = order(lt$interv.type, lt$day2i, lt$yi), ### ordering columns - first by
+         # intervention type, then by days after stroke, and then by effect
+         slab = paste(authors,lt$year, sep = ', '),
+         # slab = lt$id,
+          
+         xlim = c(-11,5.2),
+         cex.lab=1.2,
+         cex.axis = 1.2,
+         cex=.8,
+         xlab = "Standardized Mean Difference",
+         
+         # Rows below are organized by interv types
+         
+         rows=c(
+           (((mixed):(non.pharma+7))),
+           (non.pharma:(pharma+7)),
+           (pharma:(usual+7)),
+           (usual:7)
+         ),
+         
+         ylim=c(-3, ### in a very large forest plot this value needs to start up high so 
+  # that the bottom reference line can be seen (but not extremely high, otherwise it will cut 
+  # the bottom line)
+                mixed+9),
+         ilab = cbind(lt$n2i,
+                      paste0(round(lt$day1i),'-',round(lt$day2i)),
+                      gsub('global cognition','global cog',lt$domain),
+                      as.character(lt$instrument.detail),
+                      as.character(lt$group.id.orig)),
+         ilab.xpos = c(-9.2,-8.5,-7,-5.7,-4.2),
+         # mlab="",
+         addfit = T,
+         # addcred = T, # to dd credibility limits
+         # col=c("indianred1", "green"), # to add some color
+         efac = 0.5,
+         showweights = F
+  )
+  
+  par(font=2, cex=1)
+  text(-10.8, mixed+5, "Study",  pos=4)
+  text(-4.8, mixed+5, "    Study\nSubgroup", pos=4)
+  text(5.1, mixed+5, "Standardized Mean Difference [95% CI]", pos=2)
+  text(-9.35, mixed+5, "N", pos=4)
+  text(-9, mixed+5, "  Time int-\nerval (days)", pos=4)
+  text(-7.55, mixed+5, "    ICF \nDomain", pos=4)
+  text(-6.45, mixed+5, "Cogn. Test", pos=4)
+  par(font=1, cex=1.5)
+  # text(-6.9,  mixed+9.5, 
+  #      "Effect of Different Interventions on Cognition After Stroke \n    Chronic Stage [181-729 days after symptom onset]",pos=4)
+  
+    par(font=4, cex=1.2)
+    text(-9.3, c(usual+1.5,pharma+1.5,non.pharma+1.5,mixed+1.5), pos=4, 
+         c("Usual Care",
+           "Pharmacological Interventions",
+           "Therapist-led Interventions",
+           "Non-routine and alternative Interventions"))
+    par(font=4, cex=1.2)
+    text(-11, c(5.5,usual+5.5,pharma+5.5,non.pharma+5.5), pos=4, 
+         c("Overall effect usual care",
+           "Overall effect pharmacological interventions", 
+           "Overall effect therapist-led interventions",
+           "Overall effect non-routine and alternative interventions"))
+    
+  
+    res.clinic <- rma.mv(yi, vi, data=lt,
+                         subset=(interv.type=='therapist-led interv'),
+                         slab = id, random = ~ 1 | group.id)
+    res.mixed <- rma.mv(yi, vi, data=lt,
+                        subset=(interv.type=='non-routine interv'),
+                        slab = id, random = ~ group.id | id)
+    res.pharma <- rma.mv(yi, vi, data=lt,
+                         subset=(interv.type=='pharmacological'),
+                         slab = id, random = ~ group.id | id)
+    res.usual <- rma.mv(yi, vi, data=lt,
+                        subset=(interv.type=='usual care'),
+                        slab = id, random = ~ group.id | id)
+    
+    
+    par(font = 2, cex= .9)
+    # addpoly(res, row=-2, mlab="", efac = 1, col = "maroon")
+    text(-7.9, -3, pos=3, 
+         bquote(paste("All Studies (Q = ",
+                      .(formatC(res.lt$QE, digits=2, format="f")), 
+                      ", df = ", .(res.lt$k - res.lt$p),
+                      ", p = ", .(formatC(res.lt$QEp, digits=2, format="f")), 
+                      "; ",tau^2, " = ",.(formatC(res.lt$tau2, digits=2, format="f")), ")")))
+    
+    par(font=4, cex = .9)
+    ### non-convent (mixed interv)
+    text(-10.9, non.pharma+4, pos=4,
+         bquote(paste("RE Model for non-routine and alternative interventions  (Q = ",
+                      .(formatC(res.mixed$QE, digits=2, format="f")),
+                      ", df = ", .(res.mixed$k - res.mixed$p),
+                      ", p = ", .(formatC(res.mixed$QEp, digits=2, format="f")),
+                      "; ", tau^2, " = ",.(formatC(res.mixed$tau2, digits=2, format="f")), ")")))
+    
+    ### therapist-led intervention
+    text(-10.9, pharma+4, pos=4, 
+         bquote(paste("RE Model for therapist-led interventions (Q = ",
+                      .(formatC(res.clinic$QE, digits=2, format="f")),
+                      ", df = ", .(res.clinic$k - res.clinic$p),
+                      ", p = ", .(formatC(res.clinic$QEp, digits=2, format="f")), 
+                      "; ", sigma^2, " = ",.(formatC(res.clinic$tau2, digits=2, format="f")), ")")))
+
+    ### Pharmacological
+    text(-10.9, usual+4, pos=4, 
+         bquote(paste("RE Model for pharmacological interventions (Q = ",
+                      .(formatC(res.pharma$QE, digits=2, format="f")), 
+                      ", df = ", .(res.pharma$k - res.pharma$p),
+                      ", p = ", .(formatC(res.pharma$QEp, digits=2, format="f")), "; ",
+                      tau^2, " = ",.(formatC(res.pharma$tau2, digits=2, format="f")), ")")))
+    
+    ### Usual care
+    text(-10.9, 4, pos=4, 
+         bquote(paste("RE Model for usual care (Q = ",
+                      .(formatC(res.usual$QE, digits=2, format="f")),
+                      ", df = ", .(res.usual$k - res.usual$p),
+                      ", p = ", .(formatC(res.usual$QEp, digits=2, format="f")), "; ",
+                      tau^2, " = ",.(formatC(res.usual$tau2, digits=2, format="f")), ")")))
+    
+    
+    par(cex = 2.8)
+    addpoly(res.mixed, row= non.pharma+3.5, mlab="", col = "white", efac = .5)
+    addpoly(res.clinic, row= pharma+3.5 , mlab="", col = "white", efac = .5)
+    addpoly(res.pharma, row= usual+3.5,  mlab="", col = "white", efac = .5)
+    addpoly(res.usual, row= 3.5 , mlab="", col = "white", efac = .5)
+    
+  dev.off()  
+  
+```
+
+###  Long-Term Phase
+```{r, long-term interv, fig.height=25, fig.width=13, echo=T}
+CairoPDF("/Users/local folder in computer/4.long-term.pdf", height=25, width=13)  
+  par(mar=c(4,4,5,2))
+  par(font=1, cex=.8)
+  
+  
+  vlt=ma.int[ma.int$stage=='>729 days',]
+  # vlt=vlt[vlt$n1i>=11,] ## this line, if active, gets rid of all studies with small sample size
+  
+  vlt$interv.type <- factor(vlt$interv.type,
+                                   levels = c(
+                                     "non-routine interv",
+                                     "therapist-led interv",
+                                     "pharmacological",
+                                     "usual care" ))
+  
+  usual=data.frame(table(vlt$interv.type))[4,2]+6
+  pharma=data.frame(table(vlt$interv.type))[3,2]+usual+6
+  non.pharma=data.frame(table(vlt$interv.type))[2,2]+pharma+6
+  mixed=data.frame(table(vlt$interv.type))[1,2]+non.pharma+6
+  ###Running the model
+  res.vlt=rma.mv(yi, vi, data=vlt, slab = id,
+                # mods = ~ interv.type -1,
+                random = ~ group.id | id)
+  
+  ###cleaning names for authors
+  authors=trimws(gsub('et al.| and| Halper| Kulkantrakorn|-Witlox|-Iluz|ares','',vlt$author))
+  
+  forest(res.vlt, 
+         order = order(vlt$interv.type, vlt$day2i, vlt$yi), ### ordering columns - first by
+         # intervention type, then by days after stroke, and then by effect
+         slab = paste(authors,vlt$year, sep = ', '),
+         # slab = vlt$id,
+          
+         xlim = c(-11,5.2),
+         cex.lab=1.2,
+         cex.axis = 1.2,
+         cex=.8,
+         xlab = "Standardized Mean Difference",
+         
+         # Rows below are organized by interv types
+         
+         rows=c(
+           (((mixed):(non.pharma+7))),
+           (non.pharma:(pharma+7)),
+           (pharma:(usual+7)),
+           (usual:7)
+         ),
+         
+         ylim=c(-3, ### in a very large forest plot this value needs to start up high so 
+  # that the bottom reference line can be seen (but not extremely high, otherwise it will cut 
+  # the bottom line)
+                mixed+9),
+         ilab = cbind(vlt$n2i,
+                      paste0(round(vlt$day1i),'-',round(vlt$day2i)),
+                      gsub('global cognition','global cog',vlt$domain),
+                      as.character(vlt$instrument.detail),
+                      as.character(vlt$group.id.orig)),
+         ilab.xpos = c(-9.2,-8.5,-7,-5.7,-4.2),
+         # mlab="",
+         addfit = T,
+         # addcred = T, # to dd credibility limits
+         # col=c("indianred1", "green"), # to add some color
+         efac = 0.5,
+         showweights = F
+  )
+  
+  par(font=2, cex=1)
+  text(-10.8, mixed+5, "Study",  pos=4)
+  text(-4.8, mixed+5, "    Study\nSubgroup", pos=4)
+  text(5.1, mixed+5, "Standardized Mean Difference [95% CI]", pos=2)
+  text(-9.35, mixed+5, "N", pos=4)
+  text(-9, mixed+5, "  Time int-\nerval (days)", pos=4)
+  text(-7.55, mixed+5, "    ICF \nDomain", pos=4)
+  text(-6.45, mixed+5, "Cogn. Test", pos=4)
+  par(font=1, cex=1.5)
+  # text(-6.9,  mixed+9.5, 
+  #      "Effect of Different Interventions on Cognition After Stroke \n    Long-term Stage [>729 days after symptom onset]",pos=4)
+  
+    par(font=4, cex=1.2)
+    text(-9.3, c(usual+1.5,pharma+1.5,non.pharma+1.5,mixed+1.5), pos=4, 
+         c("Usual Care",
+           "Pharmacological Interventions",
+           "Therapist-led Interventions",
+           "Non-routine and alternative Interventions"))
+    par(font=4, cex=1.2)
+    text(-11, c(5.5,usual+5.5,pharma+5.5,non.pharma+5.5), pos=4, 
+         c("Overall effect usual care",
+           "Overall effect pharmacological interventions", 
+           "Overall effect therapist-led interventions",
+           "Overall effect non-routine and alternative interventions"))
+    
+  
+    res.clinic <- rma.mv(yi, vi, data=vlt,
+                         subset=(interv.type=='therapist-led interv'),
+                         slab = id, random = ~ 1 | group.id)
+    res.mixed <- rma.mv(yi, vi, data=vlt,
+                        subset=(interv.type=='non-routine interv'),
+                        slab = id, random = ~ group.id | id)
+    res.pharma <- rma.mv(yi, vi, data=vlt,
+                         subset=(interv.type=='pharmacological'),
+                         slab = id, random = ~ group.id | id)
+    res.usual <- rma.mv(yi, vi, data=vlt,
+                        subset=(interv.type=='usual care'),
+                        slab = id, random = ~ group.id | id)
+    
+    
+    par(font = 2, cex= .9)
+    # addpoly(res, row=-2, mlab="", efac = 1, col = "maroon")
+    text(-7.9, -3, pos=3, 
+         bquote(paste("All Studies (Q = ",
+                      .(formatC(res.vlt$QE, digits=2, format="f")), 
+                      ", df = ", .(res.vlt$k - res.vlt$p),
+                      ", p = ", .(formatC(res.vlt$QEp, digits=2, format="f")), 
+                      "; ",tau^2, " = ",.(formatC(res.vlt$tau2, digits=2, format="f")), ")")))
+    
+    par(font=4, cex = .9)
+    ### non-convent (mixed interv)
+    text(-10.9, non.pharma+4, pos=4,
+         bquote(paste("RE Model for non-routine and alternative interventions  (Q = ",
+                      .(formatC(res.mixed$QE, digits=2, format="f")),
+                      ", df = ", .(res.mixed$k - res.mixed$p),
+                      ", p = ", .(formatC(res.mixed$QEp, digits=2, format="f")),
+                      "; ", tau^2, " = ",.(formatC(res.mixed$tau2, digits=2, format="f")), ")")))
+    
+    ### therapist-led intervention
+    text(-10.9, pharma+4, pos=4, 
+         bquote(paste("RE Model for therapist-led interventions (Q = ",
+                      .(formatC(res.clinic$QE, digits=2, format="f")),
+                      ", df = ", .(res.clinic$k - res.clinic$p),
+                      ", p = ", .(formatC(res.clinic$QEp, digits=2, format="f")), 
+                      "; ", sigma^2, " = ",.(formatC(res.clinic$tau2, digits=2, format="f")), ")")))
+
+    ### Pharmacological
+    text(-10.9, usual+4, pos=4, 
+         bquote(paste("RE Model for pharmacological interventions (Q = ",
+                      .(formatC(res.pharma$QE, digits=2, format="f")), 
+                      ", df = ", .(res.pharma$k - res.pharma$p),
+                      ", p = ", .(formatC(res.pharma$QEp, digits=2, format="f")), "; ",
+                      tau^2, " = ",.(formatC(res.pharma$tau2, digits=2, format="f")), ")")))
+    
+    ### Usual care
+    text(-10.9, 4, pos=4, 
+         bquote(paste("RE Model for usual care (Q = ",
+                      .(formatC(res.usual$QE, digits=2, format="f")),
+                      ", df = ", .(res.usual$k - res.usual$p),
+                      ", p = ", .(formatC(res.usual$QEp, digits=2, format="f")), "; ",
+                      tau^2, " = ",.(formatC(res.usual$tau2, digits=2, format="f")), ")")))
+    
+    
+    par(cex = 2.8)
+    addpoly(res.mixed, row= non.pharma+3.5, mlab="", col = "white", efac = .5)
+    addpoly(res.clinic, row= pharma+3.5 , mlab="", col = "white", efac = .5)
+    addpoly(res.pharma, row= usual+3.5,  mlab="", col = "white", efac = .5)
+    addpoly(res.usual, row= 3.5 , mlab="", col = "white", efac = .5)
+   dev.off() 
+    
+  
+```
+
+
+##  Studies without Intervention 
+In this section we look at observational cohort studies and run separate meta-analyses for each rehabilitation phase (e.g. the `stage` variable). It is important to note that while the design of the studies here is different, we are still using mixed-effects models (REML), with the `id`, `stage`, and `group.id` variables as our sources of heterogeneity.
+
+\pagebreak
+
+###  Acute Phase
+```{r, acute observ, fig.height=15, fig.width=13, echo=F, eval=F}
+
+ 
+  par(mar=c(4,4,5,2))
+  par(font=1, cex=.8)
+  
+  ac.ob=ma.obs[ma.obs$stage=='1-60 days',]
+  # ac.ob=ac.ob[ac.ob$n1i>11,]
+  ac.ob$exposure=as.character(ac.ob$group.id.orig)
+  
+  # THE INACTIVE LINES ARE TO CREATE SUBGROUPS WITHIN THE FOREST PLOT - YOU MAY ACTIVE THEM IF NECESSARY
+  
+  # ac.ob[grep(paste(
+  #   'robot',
+  #   'carot',
+  #   'pharma',
+  #   sep='|'),ac.ob$interv.type),'interv.type']='treatment'
+
+  # ac.ob$interv.type=ifelse(ac.ob$interv.type!='treatment', 'usual care', ac.ob$interv.type)
+  # table(ac.ob$exposure)
+  # usual=data.frame(table(ac.ob$exposure))[2,2]+6
+  # ttmt=data.frame(table(ac.ob$exposure))[1,2]+usual+6
+  
+  
+  res.ac.ob=rma.mv(yi, vi, data=ac.ob, 
+                   slab = id, random = ~ 1 | group.id)
+  
+  
+  
+  authors=trimws(gsub('et al.| and| Halper| Yeh| Kulkantrakorn|-Witlox|-Iluz|ares','',ac.ob$author))
+  # ac.ob[order(ac.ob$interv.type, ac.ob$day2i),c('interv.type',"day2i")]
+  forest(res.ac.ob, order = order(ac.ob$author),  
+         slab = paste(authors,ac.ob$year, sep = ', '),
+         # slab = dat$id,
+         xlim = c(-11,5),
+         cex.lab=1.2,
+         cex.axis = 1.2,
+         cex=.8,
+         xlab = "Standardized Mean Difference",
+         # Rows below are organized by EXPOSURE types
+         
+         # rows=c(
+         #   (((ttmt):(usual+7))),
+         #   (usual:+7)
+         # ),
+         #
+         ylim=c(0,
+                nrow(ac.ob)+10),
+         ilab = cbind(ac.ob$n2i,
+                      paste0(round(ac.ob$day1i),'-',round(ac.ob$day2i)),
+                      gsub('global cognition','global cog',ac.ob$domain),
+                      as.character(ac.ob$instrument.detail),
+                      as.character(ac.ob$group.id.orig)),
+         ilab.xpos = c(-9.2,-8.3,-7,-5.7,-4.2),
+         # mlab="",
+         addfit = T,
+         # addcred = T,
+         # col=c("indianred1", "green"),
+         efac = 0.2,
+         showweights = F
+  )
+  
+  par(font=2, cex=.9)
+  text(-10.8, nrow(ac.ob)+5, "Study",  pos=4)
+  text(-4.8, nrow(ac.ob)+5, "    Study\nSubgroup", pos=4)
+  text(4.9, nrow(ac.ob)+5, "Standardized Mean Difference [95% CI]", pos=2)
+  text(-9.35, nrow(ac.ob)+5, "N", pos=4)
+  text(-9, nrow(ac.ob)+5, "  Time int-\nerval (days)", pos=4)
+  text(-7.55, nrow(ac.ob)+5, "    ICF \nDomain", pos=4)
+  text(-6.45, nrow(ac.ob)+5, "Cogn. Test", pos=4)
+  par(font=1, cex=1.5)
+  text(-6.9,  nrow(ac.ob)+10.35, 
+       "          Changes in Cognition After Stroke \nAcute Stage [1-60 days after symptom onset]",
+       pos=4)
+  
+  par(font = 2, cex= .9)
+  # addpoly(res, row=-2, mlab="", efac = 1, col = "maroon")
+  text(-7.9, -4, pos=3,
+       bquote(paste("All Studies (Q = ",
+                    .(formatC(res.ac.ob$QE, digits=2, format="f")), ", df = ", 
+                    .(res.ac.ob$k - res.ac.ob$p),
+                    ", p = ", .(formatC(res.ac.ob$QEp, digits=2, format="f")), "; ", tau^2, " = ",
+                    .(formatC(res.ac.ob$tau2, digits=2, format="f")), ")")))
+
+      # par(font=4, cex=.9)
+      # text(-9.3, c(usual+1.5,ttmt+1.5), pos=4, c("Usual Care",
+      #                                            "Exposed to Treatment"))
+      # 
+      # text(-11, c(5.5,usual+5.5), pos=4, c("Overall effect usual care",
+      #                                      "Overall effect with exposure to treatment"))
+      # 
+      # res.ttmt <- rma.mv(yi, vi, data=ac.ob,
+      #                 subset=(interv.type=='treatment'),
+      #                 slab = id, random = ~ group.id | id)
+      # res.usual <- rma.mv(yi, vi, data=ac.ob,
+      #                  subset=(interv.type=='usual care'),
+      #                  slab = id, random = ~ group.id | id)
+      # 
+      # 
+      # 
+      # par(font=4)
+      # 
+      # ### treatment exposure
+      # text(-10.9, usual+4, pos=4, cex=0.7, 
+      #      bquote(paste("RE Model for Exposure to Treatment (Q = ",
+      #                  .(formatC(res.ttmt$QE, digits=2, format="f")), ", df = ",
+      #                  .(res.ttmt$k - res.ttmt$p),
+      #                   ", p = ", .(formatC(res.ttmt$QEp, digits=2, format="f")), "; ", I^2, " = ",
+      #                   .(formatC(res.ttmt$I2, digits=1, format="f")), "%)")))
+      # 
+      # ### Usual care
+      # text(-10.9, 4, pos=4, cex=0.7, 
+      #      bquote(paste("RE Model for Usual Care (Q = ",
+      #                  .(formatC(res.usual$QE, digits=2, format="f")), ", df = ",  
+      #                  .(res.usual$k - res.usual$p),
+      #                   ", p = ", .(formatC(res.usual$QEp, digits=2, format="f")), "; ", I^2, " = ",
+      #                   .(formatC(res.usual$I2, digits=1, format="f")), "%)")))
+      # 
+      # 
+      # 
+      # addpoly(res.ttmt, row= usual+3.5, cex=.7, mlab="", col = "white", efac = 0.3)
+      # addpoly(res.usual, row= 3.5 , cex=.7, mlab="", col = "white", efac = 0.3)
+
+
+```
+
+###  Subacute Phase
+```{r, subacute observ, fig.height=50, fig.width=13, echo=F, eval=F}
+
+  par(mar=c(4,4,5,2))
+  par(font=1, cex=.8)
+  
+  sac.ob=ma.obs[ma.obs$stage=='61-180 days',]
+  # sac.ob=sac.ob[sac.ob$n1i>11,]
+  sac.ob$exposure=as.character(sac.ob$group.id.orig)
+  # unique(sac.ob$exposure)
+  # sac.ob[grep(paste(
+  #   'robot',
+  #   'carot',
+  #   'pharma',
+  #   sep='|'),sac.ob$exposure),'exposure']='treatment'
+  # 
+  # sac.ob$exposure=ifelse(sac.ob$exposure!='treatment', 'usual care', sac.ob$exposure)
+  # table(sac.ob$exposure)
+  # usual=data.frame(table(sac.ob$exposure))[2,2]+6
+  # ttmt=data.frame(table(sac.ob$exposure))[1,2]+usual+6
+  ttmt=length(sac.ob$exposure)
+  
+  res.sac.ob=rma.mv(yi, vi, data=sac.ob, slab = id, random = ~ group.id | id)
+  authors=trimws(gsub('et al.| and| Halper| Yeh| Kulkantrakorn|-Witlox|-Iluz|ares','',sac.ob$author))
+  # sac.ob[order(sac.ob$interv.type, sac.ob$day2i),c('interv.type',"day2i")]
+  forest(res.sac.ob, order = order(sac.ob$interv.type, sac.ob$author), 
+         slab = paste(authors,sac.ob$year, sep = ', '),
+         # slab = dat$id,
+         xlim = c(-11,5),
+         cex.lab=1.2,
+         cex.axis = 1.2,
+         cex=.8,
+         xlab = "Standardized Mean Difference",
+         
+         # Rows below are organized by EXPOSURE types
+         
+         # rows=c(
+         #   (((ttmt):(usual+7))),
+         #   (usual:+7)
+         # ),
+         
+         ylim=c(0, 
+                ttmt+10),
+         ilab = cbind(sac.ob$n2i,
+                      paste0(round(sac.ob$day1i),'-',round(sac.ob$day2i)),
+                      gsub('global cognition','global cog',sac.ob$domain),
+                      as.character(sac.ob$instrument.detail),as.character(sac.ob$group.id.orig)),
+         ilab.xpos = c(-9.2,-8.5,-7.2,-5.9,-4.3),
+         # mlab="",
+         addfit = T,
+         # addcred = T,
+         # col=c("indianred1", "green"),
+         efac = 0.2,
+         showweights = F
+  )
+  
+  par(font=2, cex=.9)
+  text(-10.8, ttmt+5, "Study",  pos=4)
+  text(4.9, ttmt+5, "Standardized Mean Difference [95% CI]", pos=2)
+  text(-9.35, ttmt+5, "N", pos=4)
+  text(-9, ttmt+5, "  Time int-\nerval (days)", pos=4)
+  text(-7.55, ttmt+5, "    ICF \nDomain", pos=4)
+  text(-6.45, ttmt+5, "Cogn. Test", pos=4)
+  text(-4.8, ttmt+5, "    Study\nSubgroup", pos=4)
+  par(font=1, cex=1.5)
+  text(-7,  ttmt+13.2,
+       "          Changes in Cognition After Stroke \nSubacute Stage [2-6 months after symptom onset]",
+       pos=4)
+  
+  
+    # par(font=4, cex=.9)
+    # text(-9.3, c(usual+1.5,ttmt+1.5), pos=4, c("Usual Care",
+    #                                            "Exposed to Treatment"))
+    # par(font=4, cex=.9)
+    # text(-11, c(5.5,usual+5.5), pos=4, c("Overall effect usual care",
+    #                                      "Overall effect with exposure to treatment"))
+    
+    # res.ttmt <- rma.mv(yi, vi, data=sac.ob,
+    #                    subset=(interv.type=='treatment'),
+    #                    slab = id, random = ~ group.id | id)
+    # res.usual <- rma.mv(yi, vi, data=sac.ob,
+    #                     subset=(interv.type=='usual care'),
+    #                     slab = id, random = ~ group.id | id)
+    
+    
+    par(font = 2, cex= .9)
+    # addpoly(res, row=-2, mlab="", efac = 1, col = "maroon")
+    text(-7.9, -4, pos=3,
+         bquote(paste("All Studies (Q = ",
+                      .(formatC(res.sac.ob$QE, digits=2, format="f")), ", df = ", 
+                      .(res.sac.ob$k - res.sac.ob$p),
+                      ", p = ", .(formatC(res.sac.ob$QEp, digits=2, format="f")), "; ", tau^2, " = ",
+                      .(formatC(res.sac.ob$tau2, digits=2, format="f")), ")")))
+    
+    par(font=4)
+    
+    ## treatment exposure
+    # text(-10.9, usual+4, pos=4, cex=0.7, 
+    #      bquote(paste("RE Model for Exposure to Treatment (Q = ",
+    #                   .(formatC(res.ttmt$QE, digits=2, format="f")), ", df = ", 
+    #                   .(res.ttmt$k - res.ttmt$p),
+    #                   ", p = ", .(formatC(res.ttmt$QEp, digits=2, format="f")), "; ", I^2, " = ",
+    #                   .(formatC(res.ttmt$I2, digits=1, format="f")), "%)")))
+    # 
+    # ### Usual care
+    # text(-10.9, 4, pos=4, cex=0.7, 
+    #      bquote(paste("RE Model for Usual Care (Q = ", 
+    #                   .(formatC(res.usual$QE, digits=2, format="f")), ", df = ", 
+    #                   .(res.usual$k - res.usual$p),
+    #                   ", p = ", .(formatC(res.usual$QEp, digits=2, format="f")), "; ", I^2, " = ",
+    #                   .(formatC(res.usual$I2, digits=1, format="f")), "%)")))
+    # 
+    # 
+    # 
+    # addpoly(res.ttmt, row= usual+3.5, cex=.7, mlab="", col = "white", efac = 0.3)
+    # addpoly(res.usual, row= 3.5 , cex=.7, mlab="", col = "white", efac = 0.3)
+    # 
+    
+    
+
+
+
+```
+
+###  Chronic Phase
+```{r, chronic observ, fig.height=45, fig.width=13, echo=F, eval=F}
+
+
+  par(mar=c(4,4,5,2))
+  par(font=1, cex=.8)
+  
+  lt.ob=ma.obs[ma.obs$stage=='181-729 days',]
+  # lt.ob=lt.ob[lt.ob$n1i>11,]
+  lt.ob$exposure=as.character(lt.ob$group.id.orig)
+  # unique(lt.ob$exposure)
+  # lt.ob[grep(paste(
+  #   'robot',
+  #   'carot',
+  #   'pharma',
+  #   sep='|'),lt.ob$exposure),'interv.type']='treatment'
+  # 
+  # lt.ob$exposure=ifelse(lt.ob$exposure!='treatment', 'usual care', lt.ob$exposure)
+  
+  # usual=data.frame(table(lt.ob$exposure))[2,2]+6
+  # ttmt=data.frame(table(lt.ob$exposure))[1,2]+usual+6
+  ttmt=nrow(lt.ob)
+  
+  
+  res.lt.ob=rma.mv(yi, vi, data=lt.ob, slab = id, random = ~ group.id | id) 
+  authors=trimws(gsub('et al.| and| Halper| Yeh| Kulkantrakorn|-Witlox|-Iluz|ares','',lt.ob$author))
+  forest(res.lt.ob, order = order(lt.ob$interv.type, lt.ob$author), 
+         slab = paste(authors,lt.ob$year, sep = ', '),
+         # slab = dat$id,
+         xlim = c(-11,5),
+         cex.lab=1.2,
+         cex.axis = 1.2,
+         cex=.8,
+         
+         # Rows below are organized by interv types
+         
+         # rows=c(
+         #   (((ttmt):(usual+7))),
+         #   (usual:+7)
+         # ),
+         
+         ylim=c(0,
+                ttmt+10),
+         ilab = cbind(lt.ob$n2i,
+                      paste0(round(lt.ob$day1i),'-',round(lt.ob$day2i)),
+                      gsub('global cognition','global cog',lt.ob$domain),
+                      as.character(lt.ob$instrument.detail),as.character(lt.ob$group.id.orig)),
+         ilab.xpos = c(-9.2,-8.1,-7,-5.7,-4.1),
+         xlab="Standardized Mean Difference",
+         # mlab="",
+         addfit = T,
+         # addcred = T,
+         # col=c("indianred1", "green"),
+         efac = 0.2,
+         showweights = F
+  )
+  
+  par(font=2, cex=.9)
+  text(-10.8, ttmt+5, "Study",  pos=4)
+  text(4.9, ttmt+5, "Standardized Mean Difference [95% CI]", pos=2)
+  text(-9.35, ttmt+5, "N", pos=4)
+  text(-9, ttmt+5, "  Time int-\nerval (days)", pos=4)
+  text(-7.55, ttmt+5, "    ICF \nDomain", pos=4)
+  text(-6.45, ttmt+5, "Cogn. Test", pos=4)
+  text(-4.8, ttmt+5, "    Study\nSubgroup", pos=4)
+  par(font=1, cex=1.5)
+  text(-6.9,  ttmt+11.2,
+       "          Changes in Cognition After Stroke \nChronic Stage [6-24 months after symptom onset]",
+       pos=4)
+  
+  
+    
+    # par(font=4, cex=.45)
+    # text(-9.3, c(usual+1.5,ttmt+1.5), pos=4, c("Usual Care",
+    #                                            "Exposed to Treatment"))
+    # par(font=4, cex=.45)
+    # text(-11, c(5.5,usual+5.5), pos=4, c("Overall effect usual care",
+    #                                      "Overall effect with exposure to treatment"))
+    
+    text(-7.7, -4, pos=3, cex = .7,
+         bquote(paste("All Studies (Q = ",
+                      .(formatC(res.lt.ob$QE, digits=2, format="f")), ", df = ", 
+                      .(res.lt.ob$k - res.lt.ob$p),
+                      ", p = ", .(formatC(res.lt.ob$QEp, digits=2, format="f")), "; ", tau^2, " = ",
+                      .(formatC(res.lt.ob$tau2, digits=2, format="f")), ")")))
+    
+    # res.ttmt <- rma.mv(yi, vi, data=lt.ob,
+    #                    subset=(interv.type=='treatment'),
+    #                    slab = id, random = ~ group.id | id)
+    # res.usual <- rma.mv(yi, vi, data=lt.ob,
+    #                     subset=(interv.type=='usual care'),
+    #                     slab = id, random = ~ group.id | id)
+    # 
+    # 
+    # par(font = 2, cex= .9)
+    # addpoly(res, row=-2, mlab="", efac = 1, col = "maroon")
+    # 
+    # par(font=4)
+    # 
+    # ### treatment exposure
+    # text(-10.9, usual+4, pos=4,
+    #      bquote(paste("RE Model for Exposure to Treatment (Q = ",
+    #                   .(formatC(res.ttmt$QE, digits=2, format="f")), ", df = ",
+    #                   .(res.ttmt$k - res.ttmt$p),
+    #                   ", p = ", .(formatC(res.ttmt$QEp, digits=2, format="f")), "; ", I^2, " = ",
+    #                   .(formatC(res.ttmt$I2, digits=1, format="f")), "%)")))
+    # 
+    # ### Usual care
+    # text(-10.9, 4, pos=4,
+    #      bquote(paste("RE Model for Usual Care (Q = ",
+    #                   .(formatC(res.usual$QE, digits=2, format="f")), ", df = ",
+    #                   .(res.usual$k - res.usual$p),
+    #                   ", p = ", .(formatC(res.usual$QEp, digits=2, format="f")), "; ", I^2, " = ",
+    #                   .(formatC(res.usual$I2, digits=1, format="f")), "%)")))
+    # 
+    # 
+    # 
+    # addpoly(res.ttmt, row= usual+3.5, cex=.7, mlab="", col = "white", efac = 0.3)
+    # addpoly(res.usual, row= 3.5 , cex=.7, mlab="", col = "white", efac = 0.3)
+    
+    
+
+
+```
+
+
+###  Long-term Phase
+```{r, long-term observ, fig.height=20, fig.width=13, echo=F, eval=F}
+
+
+  par(mar=c(4,4,5,2))
+  par(font=1, cex=.8)
+  
+  vlt.ob=ma.obs[ma.obs$stage=='>729 days',]
+  # vlt.ob=vlt.ob[vlt.ob$n1i>11,]
+  vlt.ob$exposure=as.character(vlt.ob$group.id)
+  # unique(vlt.ob$exposure)
+  # vlt.ob[grep(paste(
+  #   'robot',
+  #   'carot',
+  #   'pharma',
+  #   sep='|'),vlt.ob$exposure),'exposure']='treatment'
+  # 
+  # vlt.ob$exposure=ifelse(vlt.ob$exposure!='treatment', 'usual care', vlt.ob$exposure)
+  # table(vlt.ob$exposure)
+  # usual=data.frame(table(vlt.ob$exposure))[2,2]+6
+  # ttmt=data.frame(table(vlt.ob$exposure))[1,2]+usual+6
+  # 
+  
+  res.vlt.ob=rma.mv(yi, vi, data=vlt.ob, slab = id, random = ~ group.id | id) 
+  authors=trimws(gsub('et al.| and| Halper| Yeh| Kulkantrakorn|-Witlox|-Iluz|ares','',vlt.ob$author))
+  
+  forest(res.vlt.ob, order = order(vlt.ob$interv.type, vlt.ob$author), 
+         slab = paste(authors,vlt.ob$year, sep = ', '),
+         # slab = dat$id,
+         xlim = c(-11,5),
+         cex.lab=1.2,
+         cex.axis = 1.2,
+         cex=.8,
+         xlab = "Standardized Mean Difference",
+         
+         # Rows below are organized by interv types
+         
+         # rows=c(
+         #   (((ttmt):(usual+7))),
+         #   (usual:+7)
+         # ),
+         
+         ylim=c(0, 
+                nrow(vlt.ob)+10),
+         ilab = cbind(vlt.ob$n2i,
+                      paste0(round(vlt.ob$day1i),'-',round(vlt.ob$day2i)),
+                      gsub('global cognition','global cog',vlt.ob$domain),
+                      as.character(vlt.ob$instrument.detail),as.character(vlt.ob$group.id.orig)),
+         ilab.xpos = c(-9.2,-8.3,-7,-5.7,-4.1),
+         # mlab="",
+         addfit = T,
+         # addcred = T,
+         # col=c("indianred1", "green"),
+         efac = 0.2,
+         showweights = F
+  )
+  
+  par(font=2, cex=.9)
+  text(-10.8, nrow(vlt.ob)+5, "Study",  pos=4)
+  text(4.9, nrow(vlt.ob)+5, "Standardized Mean Difference [95% CI]", pos=2)
+  text(-9.35, nrow(vlt.ob)+5, "N", pos=4)
+  text(-9, nrow(vlt.ob)+5, "  Time int-\nerval (days)", pos=4)
+  text(-7.55, nrow(vlt.ob)+5, "    ICF \nDomain", pos=4)
+  text(-6.45, nrow(vlt.ob)+5, "Cogn. Test", pos=4)
+  text(-4.8, nrow(vlt.ob)+5, "    Study\nSubgroup", pos=4)
+  par(font=1, cex=1.5)
+  text(-7.9,  nrow(vlt.ob)+11.2,
+       "               Changes in Cognition After Stroke\nVery-Long Term Stage [>24 months after symptom onset]",
+       pos=4)
+  
+    #   
+    #   par(font=4, cex=.45)
+    #   text(-9.3, c(usual+1.5,ttmt+1.5), pos=4, c("Usual Care",
+    #                                              "Exposed to Treatment"))
+    #   par(font=4, cex=.45)
+    #   text(-11, c(5.5,usual+5.5), pos=4, c("Overall effect usual care",
+    #                                        "Overall effect with exposure to treatment"))
+    #   
+    #   res.ttmt <- rma.mv(yi, vi, data=vlt.ob,
+    #                   subset=(interv.type=='treatment'),
+    #                   slab = id, random = ~ group.id | id)
+    #   res.usual <- rma.mv(yi, vi, data=vlt.ob,
+    #                    subset=(interv.type=='usual care'),
+    #                    slab = id, random = ~ group.id | id)
+    #   
+    #   
+    par(font = 2, cex= .9)
+    #   # addpoly(res, row=-2, mlab="", efac = 1, col = "maroon")
+    text(-8.3, -3, pos=3,cex= .9, 
+         bquote(paste("All Studies (Q = ",
+                      .(formatC(res.vlt.ob$QE, digits=2, format="f")), ", df = ", 
+                      .(res.vlt.ob$k - res.vlt.ob$p),
+                      ", p = ", .(formatC(res.vlt.ob$QEp, digits=2, format="f")), "; ", tau^2, " = ",
+                      .(formatC(res.vlt.ob$tau2, digits=2, format="f")), ")")))
+
+      # par(font=4)
+      # 
+      # ### treatment exposure
+      # text(-10.9, usual+4, pos=4, cex=0.7, 
+      #      bquote(paste("RE Model for Exposure to Treatment (Q = ",
+      #                   .(formatC(res.ttmt$QE, digits=2, format="f")), ", df = ", 
+      #                   .(res.ttmt$k - res.ttmt$p),
+      #                   ", p = ", .(formatC(res.ttmt$QEp, digits=2, format="f")), "; ", I^2, " = ",
+      #                   .(formatC(res.ttmt$I2, digits=1, format="f")), "%)")))
+      # 
+      # ### Usual care
+      # text(-10.9, 4, pos=4, cex=0.7, 
+      #      bquote(paste("RE Model for Usual Care (Q = ",
+      #                   .(formatC(res.usual$QE, digits=2, format="f")), ", df = ", 
+      #                   .(res.usual$k - res.usual$p),
+      #                   ", p = ", .(formatC(res.usual$QEp, digits=2, format="f")), "; ", I^2, " = ",
+      #                   .(formatC(res.usual$I2, digits=1, format="f")), "%)")))
+      # 
+      # 
+      # 
+      # addpoly(res.ttmt, row= usual+3.5, cex=.7, mlab="", col = "white", efac = 0.3)
+      # addpoly(res.usual, row= 3.5 , cex=.7, mlab="", col = "white", efac = 0.3)
+
+
+```
+
+
+
+#  Profiling the Models
+As [previously discussed](#profiling-the-model-additive), profiling the models can be useful to determine over-fitting or over-parametrization. Each profile plot should show a peak at the corresponding REML estimate. If the result is a flat line (over the entire parameter range or large portions of it), then this suggests that at least some of the parameters of the model are not identifiable (and the parameter estimates obtained are to some extent arbitrary).
+
+As an example, we only profile our first model below. All models can be profiled with similar code, depending upon which estimate we want to plot. In this case, we will profile `tau2` 
+
+##  Intervention Studies 
+###  Acute Phase
+```{r, prof acute int}
+profile(res.ac,tau2 = 1,progbar=F)
+```
+
+###  Subacute Phase
+```{r, prof subacute int, eval=F}
+profile(res.sac,sigma2=1,progbar=F)
+
+```
+
+###  Chronic Phase
+
+```{r, prof chronic int, eval=F}
+profile(res.lt,tau2=1,progbar=F)
+```
+
+###  Long-Term Phase
+
+```{r, prof long-term int, eval=F}
+profile(res.vlt,tau2=1,progbar=F)
+```
+
+##  Observational Studies 
+###  Acute Phase
+```{r, prof acute obs, eval=F}
+profile(res.ac.ob,sigma2 = 1,progbar=F)
+```
+
+###  Subacute Phase
+```{r, prof subacute obs, eval=F}
+profile(res.sac.ob,tau2=1,progbar=F)
+```
+
+###  Chronic Phase
+
+```{r, prof chronic obs, eval=F}
+profile(res.lt.ob,tau2=1,progbar=F)
+```
+
+###  Long-Term Phase
+
+```{r, prof long-term obs, eval=F}
+profile(res.vlt.ob,tau2=1,progbar=F)
+```
+
+```{r, warnings, echo=F}
+warning(file="warnings.txt")
+```
+
+#  Evaluating Publication Bias
+```{r, publication bias, echo=T}
+
+eggers.test=rma.mv(yi, vi,
+       mods = ~ sqrt(vi),
+       random = list(~ group.id | id, ~ stage | group.id),
+       data = ma)
+summary(eggers.test)
+
+
+eggers.test.int=rma.mv(yi, vi,
+       mods = ~ sqrt(vi),
+       random = list(~ group.id | id, ~ stage | group.id),
+       data = ma.int)
+summary(eggers.test.int)
+
+eggers.test.int=rma.mv(yi, vi,
+       mods = ~ sqrt(vi),
+       random = list(~ group.id | id, ~ stage | group.id),
+       data = ma.int)
+summary(eggers.test.int)
+
+eggers.test.obs=rma.mv(yi, vi,
+       mods = ~ sqrt(vi),
+       random = list(~ group.id | id, ~ stage | group.id),
+       data = ma.obs)
+summary(eggers.test.obs)
+
+
+.c.int <- ma.int %>%  filter(interv.type=="therapist-led interv") 
+.pharma <- ma.int %>%  filter(interv.type=="pharmacological")
+.usual <- ma.int %>%  filter(interv.type=="usual care")
+.non.conv <- ma.int %>%  filter(interv.type=="non-routine interv")
+      
+
+rma.mv(yi, vi,
+       mods = ~ sqrt(vi),
+       random = list(~ group.id | id, ~ stage | group.id), 
+                     data = .c.int)
+rma.mv(yi, vi,
+       mods = ~ sqrt(vi),
+       random = list(~ group.id | id, ~ stage | group.id), 
+                     data = .pharma)
+rma.mv(yi, vi,
+       mods = ~ sqrt(vi),
+       random = list(~ group.id | id, ~ stage | group.id), 
+                     data = .usual)
+rma.mv(yi, vi,
+       mods = ~ sqrt(vi),
+       random = list(~ group.id | id, ~ stage | group.id), 
+                     data = .non.conv)
+       
+
+
+
+
+```
+
+
+
+# Peer-reviewing process
+
+```{r, recoding suggestion for best time of recovery (2-6 months vs 1-3 months)}
+
+ma %>% mutate(stage = ifelse(day2i <= 90, "1-90 days", 
+                             ifelse(day2i >90 & day2i <= 180,"91-180 days", stage))) %>% 
+  filter(intervention=="yes", day2i <= 90 | day2i > 90 & day2i <= 180) %>% 
+  # mutate(time = ifelse(day2i <= 90, "≤3 months","3-6 months")) %>% 
+  group_by(interv.type, stage) %>% 
+  summarise(`Effect size (SMD)` = round(mean(yi),2),
+            `Sample size` = sum(unique(n1i)),
+            `No. studies` = length(unique(id))) %>% 
+  write.csv("supp-1-90 days.csv")
+
+ma %>% 
+  filter(intervention=="yes", day2i <= 90 | day2i > 90 & day2i <= 180) %>% 
+  # mutate(time = ifelse(day2i <= 90, "≤3 months","3-6 months")) %>% 
+  group_by(interv.type, stage) %>% 
+  summarise(`Effect size (SMD)` = round(mean(yi),2),
+            `Sample size` = sum(unique(n1i)),
+            `No. studies` = length(unique(id))) %>% 
+  write.csv("supp-1-60 days.csv")
+
+
+```
+
+
+
+```{r, modeling the recoded data}
+### recoding and saving
+ma <- ma %>% mutate(stage.recoded = ifelse(day2i <= 90, "1-90 days", 
+                             ifelse(day2i >90 & day2i <= 180,"91-180 days", as.character(stage)))) 
+
+ma$stage.recoded=factor(ma$stage.recoded,
+                   levels = c('1-90 days','91-180 days', '181-729 days','>729 days'))
+
+### separating intervention from observtaional studies
+ma.int=ma %>% filter(intervention=='yes')
+ma.obs=ma %>% filter(intervention=='no' & etiology!="healthy" & etiology!="tia") 
+
+### running recoded models
+### intervention
+res.inter.recoded <- rma.mv(yi, vi, 
+                    random =  list(~ group.id | id, ~ stage.recoded | group.id),
+                    mods = ~ stage.recoded - 1, 
+                    data=ma.int)
+table.pimp(res.inter.recoded) %>% write.csv("res.inter.recoded.csv")
+
+
+#### observational
+res.obs.recoded <- rma.mv(yi, vi, 
+                    random =  list(~ group.id | id, ~ stage.recoded | group.id),
+                    mods = ~ stage.recoded - 1, 
+                    data=ma.obs)
+table.pimp(res.obs.recoded) %>% write.csv("res.obs.recoded.csv")
+
+
+
+#### normal models
+### intervention
+res.inter <- rma.mv(yi, vi, 
+                    random =  list(~ group.id | id, ~ stage | group.id),
+                    mods = ~ stage - 1, 
+                    data=ma.int)
+table.pimp(res.inter) %>% write.csv("res.inter.csv")
+
+### observational
+res.stage.obs=rma.mv(yi, vi,
+       mods = ~ stage - 1,
+       random = list(~ group.id | id, ~ stage | group.id),
+       data = ma.obs)
+table.pimp(res.stage.obs) %>% write.csv("res.obs.csv")
+
+```
+
+
+```{r, intervention RCTs vs others}
+table(ma.int$design)
+ma.int <- ma.int %>% mutate(interv.design = ifelse(design=="RCT","RCT", "other" ))
+
+res.interv.design=rma.mv(yi, vi,
+       mods = ~ interv.design - 1,
+       random = list(~ group.id | id, ~ stage | group.id),
+       data = ma.int)
+table.pimp(res.interv.design) %>% write.csv("res.interv.design.csv")
+summary(glht(res.interv.design, linfct=contrMat(c("other"=1,
+                                       "RCT"=1
+                                       ), type="Tukey")), test=adjusted("none"))
+
+
+
+```
+
+
+
+```{r, figure with recoding}
+# cairo_pdf("Fig3.pdf", height = 5, width = 8)
+res.inter.recoded.multip <- rma.mv(yi, vi, 
+                    random =  list(~ group.id | id, ~ stage.recoded | group.id),
+                    mods = ~ stage.recoded : interv.type- 1, 
+                    data=ma.int)
+res.stage.obs.recoded <- rma.mv(yi, vi, 
+                    random =  list(~ group.id | id, ~ stage.recoded | group.id),
+                    mods = ~ stage.recoded - 1, 
+                    data=ma.obs)
+
+par(mar=c(5,4,2,1))
+SMD=coef(res.inter.recoded.multip);SE=res.inter.recoded.multip$se
+a=1:4;b=1.1:4.1;c=0.9:3.9;d=0.8:3.8; e=.85:3.85  
+plot(SMD[1:4], type="o", pch=19, xlim=c(0.8,4.3), ylim=c(-0.3,1.2), 
+     xlab="Rehabilitation stage (days after stroke onset)", 
+     ylab="Effect on overall cognition (SMD ± SE)", 
+     xaxt="n", bty="l",cex.lab = 1, 
+     col ="grey50")
+
+axis(side=1, at=1:4,labels=c("Early stage\n1-90 days","Mid stage\n91-180 days",
+                             "Chronic stage\n181-729 days",'Long-term\n>729 days'),
+     cex.axis=.8)
+lines(b,SMD[5:8], type="o", pch=15, lty="dotted", col = "dodgerblue")
+lines(c,SMD[9:12], type="o", pch=19, lty="dashed", col = 'firebrick1')
+lines(d,SMD[13:16], type="o", pch=15, lty="dashed", col = "goldenrod3")
+lines(e,res.stage.obs.recoded$b, type="o", pch=22, lty="solid", col = "black",lwd=2)
+
+
+legend("topright", 
+       legend=c("Therapist-led intervention", "Non-routine and alternative","Pharmacological","Usual care", "Observational cohorts"), 
+       lty=c("solid", "dotted","dashed", "dotdash", "solid"), 
+       col = c("grey50","dodgerblue","firebrick1","goldenrod3", "black"),
+       pch=c(19,15,19,15,22), inset=0.05,cex=.8)
+# title("Figure 3: Average associations of intervention with cognitive function after stroke\nbased on the multiplicative model")
+abline(h = 0,col="gray", lwd=1, lty="dashed")
+segments(a,SMD[1:4]-SE[1:4],a,SMD[1:4]+SE[1:4],col ="grey50")
+segments(b,SMD[5:8]-SE[5:8],b,SMD[5:8]+SE[5:8],col ="dodgerblue")
+segments(c,SMD[9:12]-SE[9:12],c,SMD[9:12]+SE[9:12],col ="firebrick1")
+segments(d,SMD[13:16]-SE[13:16],d,SMD[13:16]+SE[13:16],col ="goldenrod3")
+segments(e,res.stage.obs.recoded$b + res.stage.obs.recoded$se,e,res.stage.obs.recoded$b - res.stage.obs.recoded$se,col ="black")
+
+# dev.off()
+
+
+
+
+```
+
+```{r, table with intervention studies}
+
+ma.int$design<- factor(ma.int$design)
+
+ma %>% group_by(design) %>% 
+  summarise(`No. of studies`= 
+              length(unique(id)),
+            `Sample pooled` = sum(unique(sample.stroke.baseline)),
+            `No. of follow-ups` = length(id),
+            `Mean follow-up (days), range` = paste0(round(mean(day2i-day1i)), " (",
+                                                    round(min(day1i)), " to ", round(max(day2i)),")"))  
+  # write.csv("table2.csv",na = "", row.names = F)
+
+
+```
+
+```{r, table 2 manuscript}
+
+#### table 2 paper- group comparisons by subgroup
+#### https://cran.r-project.org/web/packages/dplyr/vignettes/programming.html
+
+create.space <- function(x) do.call(rbind,lapply(split(as_tibble(x), ceiling(1:nrow(x)/4)),
+                      function(a) rbind(a, NA)))
+
+summaries <- function(data, ... ) {
+  
+     data %>% group_by( ... ) %>%  summarise(
+    `No. of studies`= length(unique(group.id.orig)),
+    `Group comparisons` = length(id),
+    `Sample pooled` = sum(unique(Ni)),
+    `Mean follow-up (days), range` = paste0(round(mean(day2i-day1i)), " (",
+                                                    round(min(day1i)), " to ", round(max(day2i)),")"))
+    }
+
+
+#### intervention and stage
+.t3 <- ma.int %>% summaries(interv.type,stage)
+    
+### intervention type alone
+.t3.2 <- ma.int %>% summaries(interv.type) %>% as_tibble
+
+
+### merging the tables
+.t3 <- rbind(NA,create.space(.t3)[,-1])
+names(.t3.2) <- names(.t3)
+.t3.2$stage <- as.character(.t3.2$stage)
+.t3$stage <- as.character(.t3$stage)
+
+.t3[seq(1,nrow(.t3)-1,5),] <- .t3.2
+
+
+
+##### merging with models
+.t3.3=table.pimp(res.inter.multip)
+
+
+.t3.3=rbind("",create.space(.t3.3))
+
+.t3.3[seq(1,nrow(.t3.3)-1,5),]<-table.pimp(res.inter)
+
+table3 <- cbind(.t3,.t3.3[,c("estimate", "se", "ci.lb", "ci.ub", "pval")])
+write.csv(table3,
+          "table-3-paper.csv", row.names = F)
+
+
+ma.int %>% filter(design=='before-after') %>% select(author,year, design) %>% unique
+```
+
+
+
+# References
