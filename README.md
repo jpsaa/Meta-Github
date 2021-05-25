@@ -1,6 +1,6 @@
 # Cognitive recovery after stroke: A meta-analysis and meta-regression of intervention and cohort studies
 
-**Saa JP, Tse T, Baum C, Uribe D, Windecker S, Ma H, Davis S, Donnan G, Carey T**. "Trajectory and factors impacting cognitive recovery in the first year after stroke", Published in [![*Neurorehabilitation and Neural Repair*](https://journals.sagepub.com/doi/full/10.1177/15459683211017501)].
+**Saa JP, Tse T, Baum C, Uribe D, Windecker S, Ma H, Davis S, Donnan G, Carey T**. "Trajectory and factors impacting cognitive recovery in the first year after stroke", Published in [*Neurorehabilitation and Neural Repair*](https://journals.sagepub.com/doi/full/10.1177/15459683211017501).
 
 ##PLEASE READ CAREFULLY BEFORE PUSHING THE "KNIT" BUTTON:
 
