@@ -14,7 +14,7 @@
 
 ### Open the "meta-NNR.Rmd" file using [R-studio](https://www.rstudio.com/products/rstudio/download/)
 ### Make sure to change your working directory
-      a) Press "cntrl + F" on your keyboard
+      a) Press "ctrl + F" on your keyboard
       b) Replace the all code lines that say "/Users/local folder in computer" with a destination on 
       your computer that makes more sense (e.g. "/Users/Guest/Desktop" OR "/Users/Guest/Downloads" 
       for a Mac computer; and "C:/a/path/that/makes/sense" for Windows)
