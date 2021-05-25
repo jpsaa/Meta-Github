@@ -14,13 +14,14 @@
 
 ### Open the "meta-NNR.Rmd" file using [R-studio](https://www.rstudio.com/products/rstudio/download/)
 ### Make sure to change your working directory
-      i. Press "cntrl + F" on your keyboard
-      ii. Replace the all code lines that say "/Users/local folder in computer" with a destination on 
+      a) Press "cntrl + F" on your keyboard
+      b) Replace the all code lines that say "/Users/local folder in computer" with a destination on 
       your computer that makes more sense (e.g. "/Users/Guest/Desktop" OR "/Users/Guest/Downloads" 
       for a Mac computer; and "C:/a/path/that/makes/sense" for Windows)
+      c) Click on "knit" --> the code will run for 20-45 minutes depending on processing power
 
-### PLEASE NOTE: the document published in NNR was further edited. Therefore, the document produced after "knitting" this file will not look exactly the same as the one published in the journal website. More specifically:
-      1. All large code chunks were moved and hyperlinked to the bottom for better readibility
-      2. Figure and table names were edited in the last steps of the article proofing process (to match the formatting of the journal)
-      3. Figure quality in the knitted document has been reduced for faster knitting
-      4. This document also contains additional analyses that were requested during the peer-reviewing process
+### PLEASE NOTE: the document published in NNR was further edited. Therefore, after "knitting" the code, the resulting file will not look exactly the same as the one published in the journal website. More specifically:
+      a) All large code chunks were moved and hyperlinked to the bottom for better readibility
+      b) Figure and table names were edited in the last steps of the article proofing process (to match the formatting of the journal)
+      c) Figure quality in the knitted document has been reduced for faster knitting
+      d) This document also contains additional analyses that were requested during the peer-reviewing process
