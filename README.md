@@ -12,8 +12,8 @@
       e) model_data.csv
       f) meta-NNR.Rmd
 
-### Open the "meta-NNR.Rmd" file using R-studio
-### Make sure to change your working directory:
+### Open the "meta-NNR.Rmd" file using [R-studio](https://www.rstudio.com/products/rstudio/download/)
+### Make sure to change your working directory
       i. Press "cntrl + F" on your keyboard
       ii. Replace the all code lines that say "/Users/local folder in computer" with a destination on 
       your computer that makes more sense (e.g. "/Users/Guest/Desktop" OR "/Users/Guest/Downloads" 
